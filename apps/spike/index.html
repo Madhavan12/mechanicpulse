@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Upload spike</title>
+<style>
+  :root {
+    --ink: #e8e6e3;
+    --dim: #8a8783;
+    --bg: #17171a;
+    --panel: #202024;
+    --line: #2e2e34;
+    --ok: #4ec07a;
+    --bad: #e2574c;
+    --live: #e8a33d;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; padding: 20px 16px 40px;
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, sans-serif;
+    max-width: 520px; margin-inline: auto;
+  }
+  h1 { font-size: 19px; font-weight: 600; margin: 0 0 4px; }
+  .hint { color: var(--dim); font-size: 14px; margin: 0 0 24px; }
+
+  label.shoot {
+    display: block; text-align: center;
+    padding: 28px 20px; margin-bottom: 20px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    font-size: 18px; font-weight: 600; cursor: pointer;
+  }
+  label.shoot:active { background: #26262b; }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  .readout { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+  .row { display: flex; justify-content: space-between; align-items: baseline;
+         padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: none; }
+  .row span { color: var(--dim); font-size: 14px; }
+  .row b { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 600; }
+
+  #bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+  #fill { height: 100%; width: 0; background: var(--live); transition: width .15s linear; }
+  #state { font-size: 15px; min-height: 24px; margin-bottom: 20px; }
+  #state.ok { color: var(--ok); }
+  #state.bad { color: var(--bad); }
+
+  img#preview { width: 100%; border-radius: 12px; display: none; margin-bottom: 20px; }
+  pre#log { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+            padding: 12px; font-size: 12px; line-height: 1.55; overflow-x: auto;
+            color: var(--dim); white-space: pre-wrap; margin: 0; }
+</style>
+</head>
+<body>
+
+<h1>Upload spike</h1>
+<p class="hint">Take a photo of something under a car. Watch the numbers. Throw this page away afterwards.</p>
+
+<label class="shoot" for="shot">Take a photo</label>
+<input id="shot" type="file" accept="image/*" capture="environment">
+
+<img id="preview" alt="">
+
+<div class="readout">
+  <div class="row"><span>Original</span><b id="before">—</b></div>
+  <div class="row"><span>Compressed</span><b id="after">—</b></div>
+  <div class="row"><span>Saved</span><b id="saved">—</b></div>
+  <div class="row"><span>Dimensions</span><b id="dims">—</b></div>
+  <div class="row"><span>Upload time</span><b id="took">—</b></div>
+</div>
+
+<div id="bar"><div id="fill"></div></div>
+<div id="state">Ready.</div>
+
+<pre id="log">Waiting for a photo.</pre>
+
+<script>
+// Point this at your deployed API. Leave as-is when testing on the same machine.
+const API = localStorage.getItem("api") || "http://localhost:3001";
+
+const MAX_EDGE = 1600;
+const QUALITY = 0.8;
+
+const $ = id => document.getElementById(id);
+const kb = n => (n / 1024).toFixed(0) + " KB";
+
+function log(line) {
+  const t = new Date().toLocaleTimeString();
+  $("log").textContent = `${t}  ${line}\n` + $("log").textContent;
+}
+function state(text, cls) {
+  $("state").textContent = text;
+  $("state").className = cls || "";
+}
+
+$("shot").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  $("fill").style.width = "0";
+  state("Compressing…");
+  $("before").textContent = kb(file.size);
+  log(`Captured ${file.name || "photo"} — ${kb(file.size)} (${file.type})`);
+
+  let blob, dims;
+  try {
+    ({ blob, dims } = await compress(file));
+  } catch (err) {
+    state("Could not read that photo. Try again.", "bad");
+    log("Compress failed: " + err.message);
+    return;
+  }
+
+  $("preview").src = URL.createObjectURL(blob);
+  $("preview").style.display = "block";
+  $("after").textContent = kb(blob.size);
+  $("dims").textContent = `${dims.w} × ${dims.h}`;
+  $("saved").textContent = Math.round((1 - blob.size / file.size) * 100) + "%";
+  log(`Compressed to ${kb(blob.size)} at ${dims.w}×${dims.h}`);
+
+  try {
+    state("Asking for an upload URL…");
+    const res = await fetch(API + "/api/media/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contentType: blob.type, bytes: blob.size })
+    });
+    if (!res.ok) throw new Error(`presign returned ${res.status}`);
+    const { uploadUrl, storageKey } = await res.json();
+    log("Got a signed URL for " + storageKey);
+
+    state("Uploading…");
+    const ms = await put(uploadUrl, blob);
+    $("took").textContent = (ms / 1000).toFixed(1) + " s";
+    state("Uploaded. Check the bucket.", "ok");
+    log(`Uploaded in ${(ms / 1000).toFixed(1)}s → ${storageKey}`);
+  } catch (err) {
+    state("Upload failed. " + err.message, "bad");
+    log("Failed: " + err.message);
+  }
+});
+
+function compress(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        b => b ? resolve({ blob: b, dims: { w, h } }) : reject(new Error("toBlob returned nothing")),
+        "image/webp",
+        QUALITY
+      );
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => reject(new Error("image failed to decode"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// XHR rather than fetch, because fetch gives no upload progress.
+function put(url, blob) {
+  return new Promise((resolve, reject) => {
+    const started = performance.now();
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", blob.type);
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) $("fill").style.width = (e.loaded / e.total * 100) + "%";
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        $("fill").style.width = "100%";
+        resolve(performance.now() - started);
+      } else {
+        reject(new Error(`S3 returned ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("network dropped"));
+    xhr.ontimeout = () => reject(new Error("timed out"));
+    xhr.send(blob);
+  });
+}
+
+log("API is " + API + "  —  change it with localStorage.setItem('api','https://...')");
+</script>
+</body>
+</html>
