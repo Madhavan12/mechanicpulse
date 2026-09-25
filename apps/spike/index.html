@@ -158,11 +158,16 @@ function compress(file) {
       const canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      canvas.toBlob(
-        b => b ? resolve({ blob: b, dims: { w, h } }) : reject(new Error("toBlob returned nothing")),
-        "image/webp",
-        QUALITY
-      );
+      // iPhone Safari can't encode WebP: it silently returns a PNG, which is
+      // bigger than the original photo. Fall back to JPEG when that happens.
+      canvas.toBlob(b => {
+        if (b && b.type === "image/webp") return resolve({ blob: b, dims: { w, h } });
+        canvas.toBlob(
+          j => j ? resolve({ blob: j, dims: { w, h } }) : reject(new Error("toBlob returned nothing")),
+          "image/jpeg",
+          QUALITY
+        );
+      }, "image/webp", QUALITY);
       URL.revokeObjectURL(img.src);
     };
     img.onerror = () => reject(new Error("image failed to decode"));
