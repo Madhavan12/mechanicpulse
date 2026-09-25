@@ -146,3 +146,22 @@ vite.config.ts.timestamp-*
 *.tfstate
 *.tfstate.*
 .terraform/
+
+# Vercel
+.vercel
+
+# TLS/private key files
+*.pem
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+
+# graphify — local knowledge-graph cache, not part of the product
+graphify-out/
