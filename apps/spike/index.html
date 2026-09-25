@@ -81,7 +81,10 @@
 
 <script>
 // Point this at your deployed API. Leave as-is when testing on the same machine.
-const API = localStorage.getItem("api") || "http://localhost:3001";
+// Served by `npx serve` on :3000 -> talk to the API on :3001.
+// Served by the API itself (e.g. through a tunnel) -> same origin.
+const API = localStorage.getItem("api") ||
+  (location.port === "3000" ? "http://localhost:3001" : location.origin);
 
 const MAX_EDGE = 1600;
 const QUALITY = 0.8;
