@@ -85,9 +85,14 @@ actual bug. Test with the real upload flow, or with `curl -X PUT`.
 
 ## Where AWS credentials live for this project
 
-- AWS account: separate account under `mechanicpulse.dev@gmail.com`, not
-  anyone's personal account.
-- Each person gets their own IAM user with their own access key. Never
-  share keys, never commit them — `.env` is gitignored, keep it that way.
-- Root login is used for almost nothing. Day-to-day work happens as an
-  IAM user with `AdministratorAccess` (fine for now, at this scale).
+*Updated 2026-09-25: moved to a new AWS account after losing access to the old one.*
+
+- **New AWS account.** The root login is used for emergencies only, with MFA on, and its
+  recovery details are shared between two people. Losing sole access is what forced the move.
+- **People sign in with IAM Identity Center (SSO), not IAM users.** Each person has
+  their own login and MFA. The group `mechanicpulse-devs` has `AdministratorAccess`.
+- **No long-lived access keys on laptops.** `aws sso login --profile mechanicpulse`
+  gives 8-hour keys, and the API picks them up through `AWS_PROFILE=mechanicpulse` in `.env`.
+- **Deployed services will use an IAM role**, not keys.
+- `.env` is gitignored. Keep it that way.
+- Setup steps for new people: `docs/aws-setup.md`.
