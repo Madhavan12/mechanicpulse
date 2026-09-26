@@ -4,12 +4,12 @@ Current status and sprint structure. Update this as sprints progress — this is
 
 ---
 
-## Current status (as of 25 Sep 2026)
+## Current status (as of 26 Sep 2026)
 
-- **Week 0 (upload prototype): infra lost, needs rebuilding.** Madhavan's original AWS setup for the spike (S3 bucket, IAM, credentials) is gone and needs to be recreated — this is a regression, not just an unfinished task. The spike *code* (presign API, camera capture page) and the two infra bugs he'd already solved (stale AWS credentials, S3 checksum mode) are documented in `docs/infra-decisions.md` and should still be valid once the AWS setup is rebuilt — the fixes were about how the SDK resolves credentials and signs requests, not about the specific bucket/account, so they should still apply. But nothing can be field-tested until the AWS side exists again. Madhavan is handling this rebuild.
-- **The actual Week 0 deliverable — four field-test numbers (compressed file size, upload time on bad signal, survives phone lock mid-upload, survives tab reload) — has never been captured.** This remains true regardless of the AWS setback; it was never done even when the infra existed.
-- Local monorepo scaffold (Next.js in `/apps/web`, Fastify in `/apps/api`) — in progress / just completed as of the last session. Check git log for actual state.
-- AWS staging environment — not yet stood up. Akash has an IAM invitation from Madhavan, not yet accepted. Needs a joint discussion with Madhavan before building — he owns the AWS account and Terraform state.
+- **Week 0 infra: rebuilt and live.** AWS moved to a new account with IAM Identity Center (SSO) access — see `docs/infra-decisions.md` and the onboarding steps in `docs/aws-setup.md`. No longer a blocker.
+- **Week 0 field test: Run 1 done, Run 2 still outstanding.** See `docs/spike-results.md` for the log. Run 1 (compression, on 4G) found and fixed two real bugs — iPhone Safari silently falling back to PNG instead of WebP (made files *bigger*, not smaller), and an S3 CORS wildcard-origin bug. **Still not tested:** fine-detail visibility, upload time on a weak signal, survival of phone-lock mid-upload, survival of tab-reload mid-upload. These need a "Run 2" in an actual weak-signal spot (basement carpark, lift lobby). This — not the code, not Run 1 — remains the real Week 0 gate per the charter.
+- **Local monorepo scaffold: done.** Both `apps/web` (Next.js, TypeScript, Tailwind) and `apps/api` (Express, still the throwaway spike) run cleanly. CI (typecheck + build) covers both apps, plus an automated Claude PR review that runs on every PR.
+- AWS staging environment — not yet stood up. Needs a joint discussion with Madhavan before building — he owns the AWS account and Terraform state. (The old "accept Madhavan's IAM invitation" step referenced below is superseded by the SSO onboarding in `docs/aws-setup.md`.)
 - Production environment — intentionally not started. Will be created empty/idle, not touched further, until much later.
 
 ## Sprint structure
@@ -35,11 +35,11 @@ Current status and sprint structure. Update this as sprints progress — this is
 
 ## Immediate next tasks (in rough priority order)
 
-1. Madhavan rebuilds the AWS setup for the spike (S3 bucket, IAM, credentials) — his current task
-2. Finish/verify local monorepo scaffold — both `apps/web` and `apps/api` run cleanly, pushed to `Madhavan12/mechanicpulse`
-3. Once AWS is rebuilt, run the actual Week 0 field test: basement carpark on one bar, lock the phone mid-upload, reload the tab mid-upload, check compressed photo clarity against a real worn/cracked part. Write results down (location TBD — the previous runbook doc was removed; confirm with Madhavan where this should live now). This is the real gate — the code existing isn't the milestone, the four field numbers are.
-4. Accept Madhavan's IAM invitation and have the staging-environment discussion with him (do not build staging AWS infra solo before this conversation happens)
-5. Once Week 0's field test proves the path, throw the spike away and start the real capture flow (job creation, line items, email/password auth) per Sprint 1–2 scope
+1. ~~Madhavan rebuilds the AWS setup for the spike~~ — done, new SSO-based account is live.
+2. ~~Finish/verify local monorepo scaffold~~ — done, both `apps/web` and `apps/api` run cleanly in CI.
+3. **Run 2 of the Week 0 field test**: basement carpark on one bar, lock the phone mid-upload, reload the tab mid-upload, check compressed photo clarity against a real worn/cracked part. Log results in `docs/spike-results.md`. This is the real gate — the code existing isn't the milestone, the four field numbers are.
+4. Complete SSO onboarding (`docs/aws-setup.md`) and have the staging-environment discussion with Madhavan (do not build staging AWS infra solo before this conversation happens)
+5. Once Run 2 proves the path, throw the spike away and start the real capture flow (job creation, line items, email/password auth) per Sprint 1–2 scope
 
 ## Open items still needing team decisions
 
