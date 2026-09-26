@@ -1,0 +1,88 @@
+name: Weekly Status Email
+
+# Sends Santhosh a plain-English weekly status update (he's non-technical
+# and shouldn't need to check the repo himself).
+#
+# Timing note: GitHub Actions cron runs on fixed UTC and does not shift for
+# daylight saving. 23:00 UTC Sunday = 09:00 Monday AEST (UTC+10). Once
+# Australian daylight saving starts (AEDT, UTC+11, roughly early Oct to
+# early Apr), the same cron fires at 10:00 Monday local time instead of
+# 09:00 — still "Monday morning", just an hour later for about half the
+# year. Adjust the cron line below if that drift ever becomes a problem.
+on:
+  schedule:
+    - cron: "0 23 * * 0"
+  workflow_dispatch: {} # lets you trigger a test send manually from the Actions tab
+
+jobs:
+  weekly-status:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full history, needed to look at the last 7 days of activity
+
+      - name: Draft the status update
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: '--allowedTools "Read,Bash(git log:*),Bash(gh pr list:*),Write"'
+          prompt: |
+            Write a short weekly status email for Santhosh, a non-technical
+            co-founder (delivery, customer discovery, business side) of
+            MechanicPulse. He does not read code, git history, or PRs
+            himself, so nothing technical should appear unexplained.
+
+            Look at:
+            - `git log --since="7 days ago" --oneline` on main
+            - `gh pr list --state merged --limit 20` and note which were
+              merged in the last 7 days
+            - `docs/plan.md`'s "Current status" and "Immediate next tasks"
+              sections, for sprint and checkpoint context
+
+            Write in plain English. No jargon — no "PR", "merge",
+            "typecheck", "CI", branch names, or commit hashes. Translate
+            each change into what it means for the product or the team,
+            not what file changed.
+
+            Structure:
+            - What happened this week (2-4 short bullets, described as
+              outcomes, e.g. "the mechanic app now has a working skeleton"
+              not "scaffolded apps/web")
+            - Where things stand against the plan (on track for the 22 Nov
+              goal or not, anything blocking progress, whether the Week 0
+              upload field test is actually finished)
+            - What's happening next week
+
+            Keep it under 200 words. Be honest about blockers and
+            unfinished work — do not overstate progress or imply something
+            is done when it isn't. If very little happened this week, say
+            that plainly instead of padding it out.
+
+            Write the finished email as simple HTML (a heading and plain
+            paragraphs/bullets, no heavy styling, no external images) to
+            ./weekly-status.html in the repo root. Do not commit it or open
+            a PR — just write the file so the next workflow step can read
+            it and send it.
+
+      - name: Send the email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "MechanicPulse — weekly update"
+          to: meetbrs@gmail.com
+          cc: akash.rjb@gmail.com
+          from: "MechanicPulse <${{ secrets.MAIL_USERNAME }}>"
+          html_body: file://weekly-status.html
