@@ -65,5 +65,6 @@ These were all considered and deliberately rejected. Full reasoning is in `docs/
 - `docs/product-decisions.md` — the "why" behind every major product/architecture call (stack, auth, mobile-deferred), in more depth than this file
 - `docs/infra-decisions.md` — Madhavan's infra playbook (AWS credential gotchas, SDK checksum bugs, and whatever he adds going forward). Different scope from product-decisions.md — check here first for any AWS/deployment error that looks like a signing or credentials issue.
 - `docs/plan.md` — sprint plan, current status, what's next
+- `docs/design.md` — visual design decisions (color palette, usage rules) locked in before wireframing
 
 Session-to-session continuity is handled by claude-mem (installed as a Claude Code plugin), not by a manually-maintained handover file.
