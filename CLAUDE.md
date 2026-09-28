@@ -40,14 +40,11 @@ One repo: `Madhavan12/mechanicpulse`.
 
 ## Data model (v1)
 
-```
-workshops   — id, name, phone, sms_sender_id, subscription_status, created_at
-mechanics   — id, workshop_id (FK), name, email, password_hash, created_at
-jobs        — id, workshop_id (FK), mechanic_id (FK), customer_name, customer_phone,
-              vehicle_desc, status, report_token, created_at, sent_at
-line_items  — id, job_id (FK), title, description, price_cents, severity, photo_s3_key, created_at
-events      — id, job_id (FK), type, created_at
-```
+Full model, ERD and the reasoning: `docs/data-model.md`. Schema: `db/migrations/0001_initial_schema.sql` (PostgreSQL 16+, RDS).
+
+Tables: `workshops`, `mechanics`, `customers`, `vehicles`, `jobs`, `inspection_items`, `media`, `reports`, `report_items`, `approvals`, `sms_messages`, `events`.
+
+Rules to keep: every tenant row carries `workshop_id` (composite FKs block cross-workshop links); money is integer cents; phones are E.164; report tokens are stored only as sha256 hashes; `report_items`, `approvals` and `events` are append-only. Schema changes go through a new numbered migration, never by editing an applied one — and need Madhavan's sign-off.
 
 `events` is the measurement layer (reports sent, links opened, time-to-decision, approval rate) — built in from the start, not bolted on later.
 
