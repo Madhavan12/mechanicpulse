@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  /* MechanicPulse palette — see docs/design.md. Fixed brand palette,
+     not a light/dark toggle. */
+  --mp-ink: #090805; /* primary text, icons */
+  --mp-cream: #e8daa6; /* page background / surface */
+  --mp-muted: #6c5c0b; /* secondary text, borders, muted chrome */
+  --mp-attention: #f1b22a; /* monitor/in-progress badge fill — never text, ~1.35:1 on cream */
+  --mp-danger: #cf0000; /* needs-immediate-attention only, used sparingly */
+
+  --background: var(--mp-cream);
+  --foreground: var(--mp-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-ink: var(--mp-ink);
+  --color-cream: var(--mp-cream);
+  --color-muted: var(--mp-muted);
+  --color-attention: var(--mp-attention);
+  --color-danger: var(--mp-danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
