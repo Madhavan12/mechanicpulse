@@ -1,4 +1,4 @@
-import type { LoginRequest, LoginResponse, PresignRequest, PresignResponse } from "../../../../packages/shared/types";
+import type { LoginRequest, LoginResponse, PresignRequest, PresignResponse, ListJobsResponse } from "../../../../packages/shared/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const TOKEN_KEY = "mp_token";
@@ -34,6 +34,18 @@ export async function login(body: LoginRequest): Promise<LoginResponse> {
   window.localStorage.setItem(TOKEN_KEY, data.token);
   window.localStorage.setItem(MECHANIC_KEY, JSON.stringify(data.mechanic));
   return data;
+}
+
+export async function listJobs(): Promise<ListJobsResponse> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/api/jobs`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "Could not load jobs." }));
+    throw new Error(err.message || "Could not load jobs.");
+  }
+  return res.json();
 }
 
 export async function presign(body: PresignRequest): Promise<PresignResponse> {

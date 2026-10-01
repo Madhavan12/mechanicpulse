@@ -74,10 +74,12 @@ Public page, not part of the authenticated app — give it its own route (e.g. `
 ### Job List (Desktop 1280px / Mobile 390px)
 - **Header** (`--color-ink` bg): brand name, "On Shift" amber pill, mechanic name + bay
 - **Title row**: "Today's Jobs (N)" + a true **segmented control** (single rounded track, one highlighted active segment — not separate pill buttons). Desktop segments: All / Not Started / In Progress / Completed. Mobile: All / Active / Done.
+- **"+ New Job" button** — not in the original Figma wireframes, added here once a real Create Job flow became necessary. Sits in the title row, right of the segmented control. Labelled (not icon-only) for clarity, primary (brass fill) variant, minimum 44px tap target. Opens Create Job (not yet built as a page — this button exists ahead of its destination).
 - **List** (the list-bar pattern): one bar per job.
   - Desktop: single-line row — vehicle name + customer/bay on the left, status pill + "Open" button on the right
   - Mobile: stacked card — status pill on top, vehicle name, then customer/bay + "Open" button below
   - Status pill variants: amber fill = In Progress, green fill = Completed, outlined = Not Started
+  - **Status mapping note**: the wireframes don't define how pill status derives from backend data. Implemented mapping (not from Figma, flagged in `docs/test-cases.md`): job status `open` with no inspection items → Not Started; `open` with ≥1 inspection item → In Progress; `sent`/`decided`/`closed` → Completed.
 - **Action**: "Open" on a job → navigates to Active Job
 
 ### Active Job (Desktop 1280px / Mobile 390px)

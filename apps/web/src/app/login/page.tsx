@@ -19,10 +19,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login({ email, password });
-      // TODO: once Job List exists, this becomes the real landing page per
-      // the spec's Login -> Job List flow. For now it goes straight to the
-      // upload screen so there's something to land on.
-      router.push("/capture");
+      // Per the spec's Login -> Job List flow.
+      router.push("/jobs");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
     } finally {

@@ -10,6 +10,17 @@ export type MediaState = "pending" | "uploading" | "ready" | "failed";
 export type JobStatus = "open" | "sent" | "decided" | "closed";
 export type Decision = "approved" | "declined";
 
+/**
+ * Mechanic-facing status, shown on the Job List (per
+ * docs/mechanic-pulse-frontend-spec.md). Derived, not stored — the
+ * `job_status` DB enum (open/sent/decided/closed) is about the customer
+ * report lifecycle, not whether the mechanic has started. Not written down
+ * anywhere else yet; flagged here as our own mapping, not a fixed
+ * requirement: "completed" = sent, decided, or closed; "in_progress" = open
+ * with at least one inspection item; "not_started" = open with none.
+ */
+export type JobDisplayStatus = "not_started" | "in_progress" | "completed";
+
 export interface Workshop {
   id: string;
   name: string;
@@ -49,10 +60,31 @@ export interface Job {
   id: string;
   workshopId: string;
   vehicleId: string;
+  customerId: string;
+  createdBy: string;
   status: JobStatus;
+  odometerKm?: number;
   /** Job card id in the shop's existing workshop software. Unused in v1. */
   externalRef?: string;
   createdAt: string;
+  closedAt?: string;
+}
+
+/** One row on the Job List — a Job plus enough vehicle/customer info to
+ * render it without a second round trip. */
+export interface JobListItem {
+  id: string;
+  status: JobStatus;
+  displayStatus: JobDisplayStatus;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleRego: string;
+  customerName: string;
+  createdAt: string;
+}
+
+export interface ListJobsResponse {
+  jobs: JobListItem[];
 }
 
 export interface InspectionItem {
