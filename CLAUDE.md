@@ -64,5 +64,6 @@ These were all considered and deliberately rejected. Full reasoning is in `docs/
 - `docs/plan.md` — sprint plan, current status, what's next
 - `docs/design.md` — visual design decisions (color palette, usage rules) locked in before wireframing
 - `docs/test-cases.md` — requirement-derived test cases per feature, and whether each is automated. Must be kept current — see README ground rules.
+- `docs/workflow-decisions.md` — reasoning behind repo automation/process choices (CI, bots, dev workflow), separate from product/architecture decisions
 
 Session-to-session continuity is handled by claude-mem (installed as a Claude Code plugin), not by a manually-maintained handover file.
