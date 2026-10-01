@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import { authRoutes } from "./routes/auth";
 import { mediaRoutes } from "./routes/media";
+import { jobsRoutes } from "./routes/jobs";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -34,6 +35,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
   await app.register(authRoutes);
   await app.register(mediaRoutes);
+  await app.register(jobsRoutes);
 
   return app;
 }

@@ -4,11 +4,15 @@ Current status and sprint structure. Update this as sprints progress — this is
 
 ---
 
-## Current status (as of 26 Sep 2026)
+## Current status (as of 1 Oct 2026)
 
 - **Week 0 infra: rebuilt and live.** AWS moved to a new account with IAM Identity Center (SSO) access — see `docs/infra-decisions.md` and the onboarding steps in `docs/aws-setup.md`. No longer a blocker.
 - **Week 0 field test: Run 1 done, Run 2 still outstanding.** See `docs/spike-results.md` for the log. Run 1 (compression, on 4G) found and fixed two real bugs — iPhone Safari silently falling back to PNG instead of WebP (made files *bigger*, not smaller), and an S3 CORS wildcard-origin bug. **Still not tested:** fine-detail visibility, upload time on a weak signal, survival of phone-lock mid-upload, survival of tab-reload mid-upload. These need a "Run 2" in an actual weak-signal spot (basement carpark, lift lobby). This — not the code, not Run 1 — remains the real Week 0 gate per the charter.
-- **Local monorepo scaffold: done.** Both `apps/web` (Next.js, TypeScript, Tailwind) and `apps/api` (Express, still the throwaway spike) run cleanly. CI (typecheck + build) covers both apps, plus an automated Claude PR review that runs on every PR.
+- **Local monorepo scaffold: done.** Both `apps/web` (Next.js, TypeScript, Tailwind) and `apps/api` (Fastify, rebuilt from the Express spike) run cleanly. CI (typecheck + build + test) covers both apps, plus an automated Claude PR review that runs on every PR.
+- **v1 data model: done.** Full Postgres schema, seed data, and ERD in `docs/data-model.md`.
+- **Login: done.** Real email/password auth against the `mechanics` table, bcrypt + JWT, per `docs/test-cases.md`.
+- **Upload/capture: working, deferred fine-tuning.** Presign + compress + upload flow works end-to-end against real S3; not yet wired into a real job/inspection-item (currently a standalone `/capture` test page).
+- **Job List + Create Job: in progress** — see Immediate next tasks.
 - AWS staging environment — not yet stood up. Needs a joint discussion with Madhavan before building — he owns the AWS account and Terraform state. (The old "accept Madhavan's IAM invitation" step referenced below is superseded by the SSO onboarding in `docs/aws-setup.md`.)
 - Production environment — intentionally not started. Will be created empty/idle, not touched further, until much later.
 
@@ -37,9 +41,12 @@ Current status and sprint structure. Update this as sprints progress — this is
 
 1. ~~Madhavan rebuilds the AWS setup for the spike~~ — done, new SSO-based account is live.
 2. ~~Finish/verify local monorepo scaffold~~ — done, both `apps/web` and `apps/api` run cleanly in CI.
-3. **Run 2 of the Week 0 field test**: basement carpark on one bar, lock the phone mid-upload, reload the tab mid-upload, check compressed photo clarity against a real worn/cracked part. Log results in `docs/spike-results.md`. This is the real gate — the code existing isn't the milestone, the four field numbers are.
-4. Complete SSO onboarding (`docs/aws-setup.md`) and have the staging-environment discussion with Madhavan (do not build staging AWS infra solo before this conversation happens)
-5. Once Run 2 proves the path, throw the spike away and start the real capture flow (job creation, line items, email/password auth) per Sprint 1–2 scope
+3. ~~Start the real capture flow: email/password auth~~ — done, see `docs/test-cases.md`.
+4. **Run 2 of the Week 0 field test** (Madhavan): basement carpark on one bar, lock the phone mid-upload, reload the tab mid-upload, check compressed photo clarity against a real worn/cracked part. Log results in `docs/spike-results.md`. This is the real gate — the code existing isn't the milestone, the four field numbers are.
+5. Complete SSO onboarding (`docs/aws-setup.md`) and have the staging-environment discussion with Madhavan (do not build staging AWS infra solo before this conversation happens)
+6. ~~Job List page~~ — done: `GET /api/jobs` endpoint, `AppHeader`/`StatusPill`/`SegmentedControl`/`ListBar` components, the page itself, and a "Create Job" button (button only — it navigates to `/jobs/new`, which doesn't exist yet, that's task 7). `docs/mechanic-pulse-frontend-spec.md`'s Job List section updated to describe the button.
+7. **Create Job page** — still not built. Interim step done this week: Job List's "+ New Job" now points at the existing `/capture` upload flow rather than a 404, and `/capture` got simple dev-facing compression analytics (before/after size, % saved, timing — console + on-page). Neither is the real Create Job page (job/customer/vehicle fields, wiring the upload to a real inspection item) — that's still the next task.
+8. **Active Job page** (the full checklist/notes/parts-and-labor screen) — after Create Job. (`/login`'s redirect already moved to the real Job List once it existed — done ahead of this.)
 
 ## Open items still needing team decisions
 

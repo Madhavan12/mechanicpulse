@@ -8,6 +8,19 @@ import { Button } from "@/components/Button";
 
 type Status = "idle" | "compressing" | "requesting" | "uploading" | "done" | "error";
 
+/** Simple dev-facing analytics — console + on-page, no analytics service.
+ * Answers "how much did compression actually save" for whoever's testing. */
+interface CompressionStats {
+  originalBytes: number;
+  compressedBytes: number;
+  savedPercent: number;
+  width: number;
+  height: number;
+  format: string;
+  compressMs: number;
+  uploadMs: number;
+}
+
 export default function CapturePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -16,6 +29,7 @@ export default function CapturePage() {
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [stats, setStats] = useState<CompressionStats | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -32,9 +46,14 @@ export default function CapturePage() {
     setProgress(0);
     setStatus("compressing");
     setMessage("Compressing…");
+    setStats(null);
+
+    const originalBytes = file.size;
 
     try {
+      const compressStart = performance.now();
       const { blob, width, height } = await compressImage(file);
+      const compressMs = Math.round(performance.now() - compressStart);
       setPreviewUrl(URL.createObjectURL(blob));
 
       setStatus("requesting");
@@ -43,7 +62,23 @@ export default function CapturePage() {
 
       setStatus("uploading");
       setMessage("Uploading…");
+      const uploadStart = performance.now();
       await putToS3(uploadUrl, blob, setProgress);
+      const uploadMs = Math.round(performance.now() - uploadStart);
+
+      const compressionStats: CompressionStats = {
+        originalBytes,
+        compressedBytes: blob.size,
+        savedPercent: Math.round((1 - blob.size / originalBytes) * 100),
+        width,
+        height,
+        format: blob.type,
+        compressMs,
+        uploadMs,
+      };
+      setStats(compressionStats);
+      // eslint-disable-next-line no-console
+      console.log("[upload] compression stats", compressionStats);
 
       setStatus("done");
       setMessage(`Uploaded (${width}×${height}, ${(blob.size / 1024).toFixed(0)} KB) → ${storageKey}`);
@@ -101,9 +136,27 @@ export default function CapturePage() {
         <p className={`text-sm max-w-sm text-center ${messageColor}`}>{message}</p>
       )}
 
+      {stats && (
+        <div className="w-full max-w-sm rounded-xl border border-border bg-card p-4 text-sm text-ink">
+          <p className="font-semibold mb-2">Compression stats (dev only)</p>
+          <p>
+            {(stats.originalBytes / 1024).toFixed(0)} KB → {(stats.compressedBytes / 1024).toFixed(0)} KB
+            {" "}
+            <span className={stats.savedPercent >= 0 ? "text-green" : "text-red"}>
+              ({stats.savedPercent >= 0 ? "-" : "+"}
+              {Math.abs(stats.savedPercent)}%)
+            </span>
+          </p>
+          <p className="text-brass">
+            {stats.width}×{stats.height}, {stats.format} · compressed in {stats.compressMs}ms, uploaded in{" "}
+            {stats.uploadMs}ms
+          </p>
+        </div>
+      )}
+
       {status === "done" && (
-        <Button variant="outline" onClick={() => router.push("/login")}>
-          Done for now
+        <Button variant="outline" onClick={() => router.push("/jobs")}>
+          Back to Jobs
         </Button>
       )}
     </main>
