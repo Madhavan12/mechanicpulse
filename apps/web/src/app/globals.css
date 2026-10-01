@@ -1,32 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  /* MechanicPulse palette — see docs/design.md. Fixed brand palette,
-     not a light/dark toggle. */
-  --mp-ink: #090805; /* primary text, icons */
-  --mp-cream: #e8daa6; /* page background / surface */
-  --mp-muted: #6c5c0b; /* secondary text, borders, muted chrome */
-  --mp-attention: #f1b22a; /* monitor/in-progress badge fill — never text, ~1.35:1 on cream */
-  --mp-danger: #cf0000; /* needs-immediate-attention only, used sparingly */
-
-  --background: var(--mp-cream);
-  --foreground: var(--mp-ink);
+  /* Design tokens — see docs/mechanic-pulse-frontend-spec.md section 2.
+     Fixed brand palette, not a light/dark toggle. */
+  --color-ink: #090805; /* primary text, dark headers/nav, CTA bands */
+  --color-surface: #e8daa6; /* page background (cream) — most screens sit on this */
+  --color-card: #fffdf7; /* card / list-bar background, sits on surface */
+  --color-border: #d3c093; /* dividers, input borders, inactive segmented-control track */
+  --color-brass: #6c5c0b; /* primary brand/action color — buttons, links, secondary text */
+  --color-amber: #f1b22a; /* status: Monitor / In Progress — fill only, fails contrast as text */
+  --color-red: #cf0000; /* status: Urgent / Needs Attention — use sparingly */
+  --color-green: #4c7a3d; /* status: Good / Completed */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-ink: var(--mp-ink);
-  --color-cream: var(--mp-cream);
-  --color-muted: var(--mp-muted);
-  --color-attention: var(--mp-attention);
-  --color-danger: var(--mp-danger);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--color-ink);
+  --color-surface: var(--color-surface);
+  --color-card: var(--color-card);
+  --color-border: var(--color-border);
+  --color-brass: var(--color-brass);
+  --color-amber: var(--color-amber);
+  --color-red: var(--color-red);
+  --color-green: var(--color-green);
+  --font-sans: var(--font-inter);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface);
+  color: var(--color-ink);
 }
