@@ -13,3 +13,4 @@
 - Keep PRs small and scoped to one feature or fix, and delete the branch after merging.
 - Every PR must include a description of what changed and why, for the reviewer.
 - If a PR changes a decision recorded in `docs/product-decisions.md` (stack, auth approach, etc.), update that doc in the same PR.
+- **`docs/test-cases.md` must be updated in the same PR as the development it describes** — new feature, new test cases; changed behavior, updated expected results; a case that's now automated, updated status.

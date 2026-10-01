@@ -16,6 +16,17 @@ export interface Workshop {
   timezone: string;
 }
 
+export type MechanicRole = "owner" | "mechanic";
+
+/** password_hash is intentionally not here — never send it to the client. */
+export interface Mechanic {
+  id: string;
+  workshopId: string;
+  name: string;
+  email: string;
+  role: MechanicRole;
+}
+
 export interface Customer {
   id: string;
   workshopId: string;
@@ -88,7 +99,18 @@ export interface Approval {
 /* Endpoints                                                           */
 /* ------------------------------------------------------------------ */
 
-/** POST /api/media/presign — the only endpoint that exists in week 0. */
+/** POST /api/auth/login */
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  mechanic: Mechanic;
+}
+
+/** POST /api/media/presign — requires Authorization: Bearer <token> */
 export interface PresignRequest {
   contentType: string;
   /** Bytes, after client-side compression. Used to reject anything absurd. */
