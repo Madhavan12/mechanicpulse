@@ -31,7 +31,8 @@ export async function jobsRoutes(app: FastifyInstance) {
        JOIN vehicles v ON v.workshop_id = j.workshop_id AND v.id = j.vehicle_id
        JOIN customers c ON c.workshop_id = j.workshop_id AND c.id = j.customer_id
        WHERE j.workshop_id = $1
-       ORDER BY j.created_at DESC`,
+       ORDER BY j.created_at DESC
+       LIMIT 200`, // safety cap, not a real answer to "today's" — see docs/test-cases.md
       [workshopId]
     );
 

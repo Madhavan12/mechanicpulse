@@ -45,7 +45,7 @@ Current status and sprint structure. Update this as sprints progress — this is
 4. **Run 2 of the Week 0 field test** (Madhavan): basement carpark on one bar, lock the phone mid-upload, reload the tab mid-upload, check compressed photo clarity against a real worn/cracked part. Log results in `docs/spike-results.md`. This is the real gate — the code existing isn't the milestone, the four field numbers are.
 5. Complete SSO onboarding (`docs/aws-setup.md`) and have the staging-environment discussion with Madhavan (do not build staging AWS infra solo before this conversation happens)
 6. ~~Job List page~~ — done: `GET /api/jobs` endpoint, `AppHeader`/`StatusPill`/`SegmentedControl`/`ListBar` components, the page itself, and a "Create Job" button (button only — it navigates to `/jobs/new`, which doesn't exist yet, that's task 7). `docs/mechanic-pulse-frontend-spec.md`'s Job List section updated to describe the button.
-7. **Create Job page**, including the photo-upload step (wires the existing `/capture` upload flow into a real job/inspection-item for the first time) — next after Job List.
+7. **Create Job page** — still not built. Interim step done this week: Job List's "+ New Job" now points at the existing `/capture` upload flow rather than a 404, and `/capture` got simple dev-facing compression analytics (before/after size, % saved, timing — console + on-page). Neither is the real Create Job page (job/customer/vehicle fields, wiring the upload to a real inspection item) — that's still the next task.
 8. **Active Job page** (the full checklist/notes/parts-and-labor screen) — after Create Job. (`/login`'s redirect already moved to the real Job List once it existed — done ahead of this.)
 
 ## Open items still needing team decisions

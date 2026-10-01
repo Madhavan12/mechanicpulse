@@ -61,9 +61,15 @@ Format per feature:
 | 8 | Added for this project, not spec'd | Jobs are ordered newest-first | Most recently created job is first | ✅ "orders jobs newest first" |
 | 9 | `docs/mechanic-pulse-frontend-spec.md` — Job List, desktop/mobile segmented control (All / Not Started / In Progress / Completed, or All / Active / Done on mobile) | Filtering by status works in the UI | Clicking a segment shows only matching jobs | 🔸 Manual only — filtering is done client-side over the full list for this iteration; no backend filter param |
 | 10 | `docs/mechanic-pulse-frontend-spec.md` — "Create Job" button (added to the spec, not in the original Figma) | Button is present on the Job List page, meets the 44px minimum tap target (HIG-style touch target), and is visually distinct as the primary action | Button renders, is tappable, navigates toward job creation | 🔸 Manual only — the page it navigates to is a later task, so the destination isn't testable yet |
+| 11 | Flagged by automated review, not from a written requirement | The page is titled "Today's Jobs (N)", but the query has no date filter — it returns every job the workshop has ever had | **Open question, not resolved**: does "today's" mean literally created today, or "currently open/active" regardless of date? Added a `LIMIT 200` as a safety cap against unbounded growth, but that's a mitigation, not an answer. Needs a product decision before real data makes this misleading. | ⬜ Not yet covered |
 
 ---
 
 ## Feature: Upload (photo capture → S3)
 
-Deferred — out of scope for the current iteration per team discussion (2026-10-01). This section is a placeholder so the structure exists; fill in requirement-derived cases and automated coverage when upload is revisited.
+Full build-out (real Create Job integration, severity/price fields) still deferred per team discussion (2026-10-01). Two small additions made this week, logged here per the README rule rather than left undocumented:
+
+| # | Requirement source | Case | Expected result | Automated? |
+|---|---|---|---|---|
+| 1 | Added for this project — Job List's "+ New Job" has nowhere real to go yet | Clicking "+ New Job" on `/jobs` opens the working upload flow (`/capture`) instead of a 404 | Interim wiring only — not the real Create Job page, see `docs/plan.md` | 🔸 Manual only |
+| 2 | Added for this project — "know how much compression was achieved", dev-facing only | After a successful upload, original size, compressed size, % saved, dimensions, and compress/upload timing are visible both in the browser console and on the page | Stats shown; green when the file got smaller, red when it got bigger (catches the iPhone-WebP-fallback-makes-it-bigger bug class from `docs/spike-results.md` again if it recurs) | 🔸 Manual only — no automated test; this is a dev-visibility aid, not a feature with a correctness requirement beyond "the arithmetic is right" |
