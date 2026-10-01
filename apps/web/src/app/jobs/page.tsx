@@ -10,15 +10,14 @@ import { StatusPill } from "@/components/StatusPill";
 import { ListBar } from "@/components/ListBar";
 import { Button } from "@/components/Button";
 
-type DesktopFilter = "all" | "not_started" | "in_progress" | "completed";
-type MobileFilter = "all" | "active" | "completed";
+type Filter = "all" | "not_started" | "in_progress" | "active" | "completed";
 
 export default function JobsPage() {
   const router = useRouter();
   const [mechanicName, setMechanicName] = useState<string | null>(null);
   const [jobs, setJobs] = useState<JobListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<DesktopFilter>("all");
+  const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
     if (!getToken()) {
@@ -38,10 +37,13 @@ export default function JobsPage() {
     router.replace("/login");
   }
 
-  const mobileFilter: MobileFilter = filter === "not_started" || filter === "in_progress" ? "active" : filter;
+  // "Active" is a mobile-only bucket covering both not-started and
+  // in-progress jobs — desktop filters by the precise status instead.
+  const mobileFilter: Filter = filter === "not_started" || filter === "in_progress" ? "active" : filter;
 
   const filtered = (jobs ?? []).filter((job) => {
     if (filter === "all") return true;
+    if (filter === "active") return job.displayStatus === "not_started" || job.displayStatus === "in_progress";
     return job.displayStatus === filter;
   });
 
@@ -69,7 +71,7 @@ export default function JobsPage() {
             <div className="lg:hidden">
               <SegmentedControl
                 value={mobileFilter}
-                onChange={(v) => setFilter(v === "active" ? "all" : v)}
+                onChange={setFilter}
                 options={[
                   { label: "All", value: "all" },
                   { label: "Active", value: "active" },
