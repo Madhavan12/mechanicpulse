@@ -58,6 +58,75 @@ jobs:
       - name: Build
         run: npm run build
 
+  e2e:
+    name: Web — end-to-end
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mechanicpulse_test
+        ports:
+          - 5432:5432
+        # Don't start the tests against a database that isn't accepting
+        # connections yet.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/mechanicpulse_test
+      JWT_SECRET: ci-only-not-a-real-secret
+      WEB_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      PORT: 3001
+      S3_BUCKET: ci-bucket-does-not-exist
+      AWS_REGION: ap-southeast-2
+      # Presigning signs locally and makes no network call, so throwaway
+      # values are enough to exercise the code path. The URLs they produce
+      # don't resolve, which is exactly the "photo won't load" case the
+      # customer page has to survive. Deliberately not key-shaped, so the
+      # guardrails job's AKIA/ASIA scan stays meaningful.
+      AWS_ACCESS_KEY_ID: ci-dummy
+      AWS_SECRET_ACCESS_KEY: ci-dummy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web
+        run: npm ci
+
+      - name: Install api
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      # The suite applies db/migrations itself when the database is empty,
+      # and re-seeds before each spec — no separate migrate step needed.
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
   guardrails:
     name: No secrets committed
     runs-on: ubuntu-latest
