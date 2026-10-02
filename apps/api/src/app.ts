@@ -18,11 +18,6 @@ declare module "fastify" {
 
 export interface BuildAppOptions {
   jwtSecret: string;
-  /** One or more allowed browser origins, comma-separated. A list because
-   * loopback has two spellings (localhost and 127.0.0.1, which differ to CORS
-   * and to IPv6-preferring browsers), and because staging and production will
-   * eventually both need to be allowed. Never a wildcard — see
-   * docs/spike-results.md for what a wildcard CORS rule cost us once already. */
   webOrigin: string;
   logger?: boolean;
 }
@@ -30,11 +25,7 @@ export interface BuildAppOptions {
 export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false });
 
-  const allowedOrigins = opts.webOrigin
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
-  await app.register(cors, { origin: allowedOrigins });
+  await app.register(cors, { origin: opts.webOrigin });
   await app.register(jwt, { secret: opts.jwtSecret });
 
   app.decorate("webOrigin", opts.webOrigin);

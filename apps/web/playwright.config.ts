@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const WEB_URL = process.env.E2E_WEB_URL ?? "http://127.0.0.1:3000";
-const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:3001";
+const WEB_URL = process.env.E2E_WEB_URL ?? "http://localhost:3000";
+const API_URL = process.env.E2E_API_URL ?? "http://localhost:3001";
 
 /** End-to-end tests: a real browser against the real API, the real Postgres
  * and (given credentials) the real S3 bucket. Nothing is mocked. The unit

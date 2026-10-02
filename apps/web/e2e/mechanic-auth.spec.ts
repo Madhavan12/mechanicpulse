@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { resetDb, scalar } from "./helpers/db";
 import { SEED } from "./helpers/fixtures";
+import { gotoReady } from "./helpers/nav";
 
 test.beforeAll(resetDb);
 
 test.describe("Mechanic login", () => {
   test("rejects a wrong password without revealing whether the email exists", async ({ page }) => {
-    await page.goto("/login");
+    await gotoReady(page, "/login");
     await page.getByLabel("Email").fill(SEED.ownerEmail);
     await page.getByLabel("Password").fill("not-the-password");
     await page.getByRole("button", { name: "Log In" }).click();
@@ -19,7 +20,7 @@ test.describe("Mechanic login", () => {
   });
 
   test("gives an unknown email the identical message", async ({ page }) => {
-    await page.goto("/login");
+    await gotoReady(page, "/login");
     await page.getByLabel("Email").fill("nobody@demo.test");
     await page.getByLabel("Password").fill(SEED.password);
     await page.getByRole("button", { name: "Log In" }).click();
@@ -30,7 +31,7 @@ test.describe("Mechanic login", () => {
   });
 
   test("signs the mechanic in and lands on the job list", async ({ page }) => {
-    await page.goto("/login");
+    await gotoReady(page, "/login");
     await page.getByLabel("Email").fill(SEED.ownerEmail);
     await page.getByLabel("Password").fill(SEED.password);
     await page.getByRole("button", { name: "Log In" }).click();
@@ -45,7 +46,7 @@ test.describe("Mechanic login", () => {
   });
 
   test("shows the seeded job as In Progress", async ({ page }) => {
-    await page.goto("/login");
+    await gotoReady(page, "/login");
     await page.getByLabel("Email").fill(SEED.ownerEmail);
     await page.getByLabel("Password").fill(SEED.password);
     await page.getByRole("button", { name: "Log In" }).click();

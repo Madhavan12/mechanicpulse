@@ -1,5 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { API_URL, SEED } from "./fixtures";
+import { gotoReady } from "./nav";
 
 /** Logs in over the API and returns the JWT. Use this to set up state for a
  * test whose subject isn't the login screen itself — mechanic-auth.spec.ts
@@ -39,7 +40,7 @@ export async function sendReport(
 
 /** Logs in through the real form and lands on the job list. */
 export async function loginViaUi(page: Page, email = SEED.ownerEmail): Promise<void> {
-  await page.goto("/login");
+  await gotoReady(page, "/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(SEED.password);
   await page.getByRole("button", { name: "Log In" }).click();

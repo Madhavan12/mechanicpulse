@@ -23,7 +23,7 @@ export const SEED = {
 
 export const TOTAL_CENTS = SEED.brakeCents + SEED.wiperCents; // 33400
 
-export const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:3001";
+export const API_URL = process.env.E2E_API_URL ?? "http://localhost:3001";
 
 /** An S3 object that really exists in the dev bucket. Only used when
  * REAL_S3 is on — otherwise the seed's dangling key is fine, since the point

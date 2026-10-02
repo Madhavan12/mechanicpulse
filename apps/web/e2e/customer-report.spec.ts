@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { resetDb, scalar, usePhotoKey } from "./helpers/db";
 import { loginViaApi, sendReport } from "./helpers/api";
 import { REAL_PHOTO_KEY, REAL_S3, SEED, TOTAL_CENTS, money } from "./helpers/fixtures";
+import { gotoReady } from "./helpers/nav";
 
 
 test.describe("Customer report", () => {
@@ -18,12 +19,19 @@ test.describe("Customer report", () => {
     expect(report.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
     // Nothing from the mechanic's session should matter here.
+    // Looking for JS and React problems — hydration mismatches, uncaught
+    // throws. Failed resource loads are excluded on purpose: the seed's wiper
+    // photo points at a key that doesn't exist, and WebKit logs that 404 to
+    // the console while Chromium stays quiet. That the page survives a
+    // missing photo is asserted directly further down.
     const consoleErrors: string[] = [];
-    page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
+    page.on("console", (m) => {
+      if (m.type() === "error" && !/Failed to load resource/i.test(m.text())) consoleErrors.push(m.text());
+    });
     page.on("pageerror", (e) => consoleErrors.push(String(e)));
 
     await test.step("opens with no session of any kind", async () => {
-      await page.goto(`/r/${report.token}`);
+      await gotoReady(page, `/r/${report.token}`);
       await expect(page.getByRole("heading", { name: "Vehicle Health Report" })).toBeVisible();
 
       expect(await context.cookies()).toHaveLength(0);
@@ -151,7 +159,7 @@ test.describe("Customer report", () => {
     const jwt = await loginViaApi(request);
     const report = await sendReport(request, jwt);
 
-    await page.goto(`/r/${report.token}`);
+    await gotoReady(page, `/r/${report.token}`);
     await page.getByRole("button", { name: "Approve all" }).click();
     await page.getByLabel("Your name").fill("Jo Bloggs");
     await page.getByRole("button", { name: "Send my decision" }).click();
@@ -170,7 +178,7 @@ test.describe("Customer report", () => {
 
     expect(report.totalCents).toBe(SEED.wiperCents);
 
-    await page.goto(`/r/${report.token}`);
+    await gotoReady(page, `/r/${report.token}`);
     await expect(page.getByRole("list").locator("li")).toHaveCount(1);
     await expect(page.getByRole("list").getByText(SEED.wiperTitle)).toBeVisible();
     await expect(page.getByText(SEED.brakeTitle)).toHaveCount(0);

@@ -84,7 +84,7 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/mechanicpulse_test
       JWT_SECRET: ci-only-not-a-real-secret
-      WEB_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      WEB_ORIGIN: http://localhost:3000
       PORT: 3001
       S3_BUCKET: ci-bucket-does-not-exist
       AWS_REGION: ap-southeast-2
