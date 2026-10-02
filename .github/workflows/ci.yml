@@ -85,7 +85,9 @@ jobs:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/mechanicpulse_test
       JWT_SECRET: ci-only-not-a-real-secret
       WEB_ORIGIN: http://localhost:3000
-      PORT: 3001
+      # No PORT here on purpose: `next start` reads it too, so a job-level
+      # PORT makes the web server try to bind the API's port. Each server's
+      # port is set per-process in playwright.config.ts instead.
       S3_BUCKET: ci-bucket-does-not-exist
       AWS_REGION: ap-southeast-2
       # Presigning signs locally and makes no network call, so throwaway
