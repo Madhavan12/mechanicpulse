@@ -74,13 +74,25 @@ Public page, not part of the authenticated app — give it its own route (e.g. `
 ### Job List (Desktop 1280px / Mobile 390px)
 - **Header** (`--color-ink` bg): brand name, "On Shift" amber pill, mechanic name + bay
 - **Title row**: "Today's Jobs (N)" + a true **segmented control** (single rounded track, one highlighted active segment — not separate pill buttons). Desktop segments: All / Not Started / In Progress / Completed. Mobile: All / Active / Done.
-- **"+ New Job" button** — not in the original Figma wireframes, added here once a real Create Job flow became necessary. Sits in the title row, right of the segmented control. Labelled (not icon-only) for clarity, primary (brass fill) variant, minimum 44px tap target. Opens Create Job (not yet built as a page — this button exists ahead of its destination).
+- **"+ New Job" button** — not in the original Figma wireframes, added here once a real Create Job flow became necessary. Sits in the title row, right of the segmented control. Labelled (not icon-only) for clarity, primary (brass fill) variant, minimum 44px tap target. Opens Create Job (`/jobs/new`).
 - **List** (the list-bar pattern): one bar per job.
   - Desktop: single-line row — vehicle name + customer/bay on the left, status pill + "Open" button on the right
   - Mobile: stacked card — status pill on top, vehicle name, then customer/bay + "Open" button below
   - Status pill variants: amber fill = In Progress, green fill = Completed, outlined = Not Started
   - **Status mapping note**: the wireframes don't define how pill status derives from backend data. Implemented mapping (not from Figma, flagged in `docs/test-cases.md`): job status `open` with no inspection items → Not Started; `open` with ≥1 inspection item → In Progress; `sent`/`decided`/`closed` → Completed.
 - **Action**: "Open" on a job → navigates to Active Job
+
+### Create Job (Desktop 1280px / Mobile 390px)
+Not in the original Figma wireframes — spec'd here from the data model. Mobile-first: a mechanic fills this in standing at the car.
+- **Header**: same pattern as Active Job (mobile: back chevron "‹ Jobs").
+- **Single-column form**, 44px inputs, label above (desktop: centered card ~480px, like Login). Two groups:
+  - **Customer** — Name (required), Mobile (required; Australian number typed as `0412 345 678` or `+61…`, stored E.164)
+  - **Vehicle** — Rego (required; shown upper-case, stored without spaces), Make, Model (optional), Odometer km (optional)
+- **Footer**: full-width primary "Create Job" + outline "Cancel" (back to Job List). Mobile has the 34px safe-area bottom padding.
+- **Validation**: inline, per field, on submit; the server re-validates everything and its messages are shown if it disagrees.
+- **Repeat customers/vehicles**: a mobile or rego the workshop has seen before is reused, not duplicated (the schema is unique on both).
+- **Action**: Create Job → the new job's Active Job page. Until Active Job exists, → Job List.
+- **Out of scope for now**: customer/rego lookup or autocomplete, VIN, year, photos (those belong to Active Job), checking SMS opt-out.
 
 ### Active Job (Desktop 1280px / Mobile 390px)
 The core mechanic workflow — inspecting a vehicle and writing it up.
@@ -107,6 +119,7 @@ Wired in the Figma prototype — mirror this as your app's navigation:
 ```
 Home ──(Log In / Get Started)──▶ Login
 Login ──(Log In)──▶ Job List
+Job List ──(+ New Job)──▶ Create Job ──(Create Job)──▶ Active Job
 Job List ──(Open on a job)──▶ Active Job
 Active Job ──(Send Report to Customer)──▶ Customer Report
 ```

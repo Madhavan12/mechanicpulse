@@ -12,7 +12,8 @@ Current status and sprint structure. Update this as sprints progress — this is
 - **v1 data model: done.** Full Postgres schema, seed data, and ERD in `docs/data-model.md`.
 - **Login: done.** Real email/password auth against the `mechanics` table, bcrypt + JWT, per `docs/test-cases.md`.
 - **Upload/capture: working, deferred fine-tuning.** Presign + compress + upload flow works end-to-end against real S3; not yet wired into a real job/inspection-item (currently a standalone `/capture` test page).
-- **Job List + Create Job: in progress** — see Immediate next tasks.
+- **Job List: done. Create Job: in progress** — see Immediate next tasks.
+- **Customer report page + send/approve API: done** (PR #40). Nothing on the mechanic side calls the send endpoint yet, and SMS isn't implemented — the link isn't texted.
 - AWS staging environment — not yet stood up. Needs a joint discussion with Madhavan before building — he owns the AWS account and Terraform state. (The old "accept Madhavan's IAM invitation" step referenced below is superseded by the SSO onboarding in `docs/aws-setup.md`.)
 - Production environment — intentionally not started. Will be created empty/idle, not touched further, until much later.
 
@@ -45,7 +46,7 @@ Current status and sprint structure. Update this as sprints progress — this is
 4. **Run 2 of the Week 0 field test** (Madhavan): basement carpark on one bar, lock the phone mid-upload, reload the tab mid-upload, check compressed photo clarity against a real worn/cracked part. Log results in `docs/spike-results.md`. This is the real gate — the code existing isn't the milestone, the four field numbers are.
 5. Complete SSO onboarding (`docs/aws-setup.md`) and have the staging-environment discussion with Madhavan (do not build staging AWS infra solo before this conversation happens)
 6. ~~Job List page~~ — done: `GET /api/jobs` endpoint, `AppHeader`/`StatusPill`/`SegmentedControl`/`ListBar` components, the page itself, and a "Create Job" button (button only — it navigates to `/jobs/new`, which doesn't exist yet, that's task 7). `docs/mechanic-pulse-frontend-spec.md`'s Job List section updated to describe the button.
-7. **Create Job page** — still not built. Interim step done this week: Job List's "+ New Job" now points at the existing `/capture` upload flow rather than a 404, and `/capture` got simple dev-facing compression analytics (before/after size, % saved, timing — console + on-page). Neither is the real Create Job page (job/customer/vehicle fields, wiring the upload to a real inspection item) — that's still the next task.
+7. **Create Job page** — in progress (`feature/create-job`). `/jobs/new` form (customer name + mobile, rego, make/model, odometer) backed by `POST /api/jobs`, which finds-or-creates the customer and vehicle and inserts the job in one transaction, writing a `job.created` event. Requirements in `docs/mechanic-pulse-frontend-spec.md` (Create Job); cases in `docs/test-cases.md`. Wiring a photo to an inspection item is *not* part of this — that's Active Job. Job List's "+ New Job" moves from `/capture` to `/jobs/new` when this lands.
 8. **Active Job page** (the full checklist/notes/parts-and-labor screen) — after Create Job. (`/login`'s redirect already moved to the real Job List once it existed — done ahead of this.)
 
 ## Open items still needing team decisions

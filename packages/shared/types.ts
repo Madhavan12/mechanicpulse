@@ -87,6 +87,31 @@ export interface ListJobsResponse {
   jobs: JobListItem[];
 }
 
+/** POST /api/jobs. workshopId and createdBy are deliberately absent — they
+ * come from the JWT, never from the body. */
+export interface CreateJobRequest {
+  customerName: string;
+  /** Any common AU mobile format ("0412 345 678", "+61412345678"); the API
+   * normalises to E.164. */
+  customerMobile: string;
+  /** Case and spaces are normalised away ("abc 123" -> "ABC123"). */
+  rego: string;
+  make?: string;
+  model?: string;
+  odometerKm?: number;
+}
+
+export interface CreateJobResponse {
+  jobId: string;
+}
+
+/** 400 body for a bad field, so the form can put the message next to it. */
+export interface FieldError {
+  error: "invalid_field";
+  field: "customerName" | "customerMobile" | "rego" | "make" | "model" | "odometerKm";
+  message: string;
+}
+
 export interface InspectionItem {
   id: string;
   jobId: string;

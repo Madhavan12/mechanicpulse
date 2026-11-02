@@ -80,13 +80,10 @@ export default function JobsPage() {
               />
             </div>
 
-            {/* "Create Job" — not in the original Figma wireframes, added
-                per docs/mechanic-pulse-frontend-spec.md update. 44px tap
-                target (h-11 via Button), labelled rather than icon-only.
-                Points at /capture for now — the real Create Job page
-                (with job/customer/vehicle fields) doesn't exist yet; this
-                is an interim wire-up to the working upload flow. */}
-            <Button onClick={() => router.push("/capture")}>+ New Job</Button>
+            {/* "+ New Job" — not in the original Figma wireframes, added per
+                docs/mechanic-pulse-frontend-spec.md. 44px tap target (h-11
+                via Button), labelled rather than icon-only. */}
+            <Button onClick={() => router.push("/jobs/new")}>+ New Job</Button>
           </div>
         </div>
 
