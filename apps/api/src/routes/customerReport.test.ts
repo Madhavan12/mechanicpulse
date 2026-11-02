@@ -89,8 +89,7 @@ function router(routes: Route[]) {
 
 const GET_ROUTES: Route[] = [
   { match: /FROM\s+reports\s+r/i, rows: [reportRow()] },
-  { match: /UPDATE reports SET first_opened_at/i, rows: [{ id: REPORT_ID }] },
-  { match: /INSERT INTO events/i },
+  { match: /WITH opened AS/i },
   { match: /FROM report_items ri/i, rows: [viewRow(ITEM_1, 28900, 0), viewRow(ITEM_2, 4500, 1)] },
 ];
 
@@ -177,22 +176,22 @@ describe("GET /api/report/:token", () => {
     query.mockImplementation(fn);
     await fetchReport();
 
-    const update = calls.find((c) => /UPDATE reports SET first_opened_at/i.test(c.sql))!;
+    // Stamp and event are one statement, so they can't half-apply.
+    const open = calls.find((c) => /WITH opened AS/i.test(c.sql))!;
     // The WHERE clause is what makes a reload idempotent.
-    expect(update.sql).toMatch(/first_opened_at IS NULL/i);
-
-    const event = calls.find((c) => /INSERT INTO events/i.test(c.sql))!;
-    expect(event.sql).toMatch(/'report\.opened'/);
-    expect(event.sql).toMatch(/'customer'/);
-    expect(event.params).toEqual([WORKSHOP_ID, JOB_ID, REPORT_ID]);
+    expect(open.sql).toMatch(/first_opened_at IS NULL/i);
+    expect(open.sql).toMatch(/'report\.opened'/);
+    expect(open.sql).toMatch(/'customer'/);
+    expect(open.params).toEqual([REPORT_ID, WORKSHOP_ID, JOB_ID]);
   });
 
-  it("does not record a second open when the report was already opened", async () => {
-    const { calls, fn } = router(getRoutes({ match: /UPDATE reports SET first_opened_at/i, rows: [] }));
+  it("still serves the report when recording the open fails", async () => {
+    const { fn } = router(getRoutes({ match: /WITH opened AS/i, throws: new Error("db blip") }));
     query.mockImplementation(fn);
-    await fetchReport();
+    const res = await fetchReport();
 
-    expect(calls.some((c) => /INSERT INTO events/i.test(c.sql))).toBe(false);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().items).toHaveLength(2);
   });
 
   it("shows a decided report read-only, with the customer's own answers", async () => {
@@ -209,7 +208,7 @@ describe("GET /api/report/:token", () => {
     expect(body.state).toBe("decided");
     expect(body.items.map((i: { decision: string }) => i.decision)).toEqual(["approved", "declined"]);
     // A decided report isn't a new "open".
-    expect(calls.some((c) => /INSERT INTO events/i.test(c.sql))).toBe(false);
+    expect(calls.some((c) => /WITH opened AS/i.test(c.sql))).toBe(false);
   });
 
   it("reports an expired link as expired and withholds the quote", async () => {

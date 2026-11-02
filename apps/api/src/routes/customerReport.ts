@@ -86,20 +86,24 @@ export async function customerReportRoutes(app: FastifyInstance) {
 
     // First open is a measurement moment (time-to-open). The WHERE clause
     // makes it idempotent: whoever wins the race writes the event, reloads
-    // don't. Dead links aren't counted as opens.
+    // don't. Dead links aren't counted as opens. The stamp and the event are
+    // one statement, so they commit or fail together — a failure leaves
+    // first_opened_at NULL and the next load records the open. Measurement
+    // must never stop the customer seeing their quote.
     if (state === "open") {
-      const { rows: firstOpen } = await db.query<{ id: string }>(
-        `UPDATE reports SET first_opened_at = now()
-          WHERE id = $1 AND first_opened_at IS NULL
-          RETURNING id`,
-        [report.id]
-      );
-      if (firstOpen[0]) {
+      try {
         await db.query(
-          `INSERT INTO events (workshop_id, job_id, report_id, type, actor)
-                VALUES ($1, $2, $3, 'report.opened', 'customer')`,
-          [report.workshop_id, report.job_id, report.id]
+          `WITH opened AS (
+             UPDATE reports SET first_opened_at = now()
+              WHERE id = $1 AND first_opened_at IS NULL
+              RETURNING id
+           )
+           INSERT INTO events (workshop_id, job_id, report_id, type, actor)
+                SELECT $2, $3, opened.id, 'report.opened', 'customer' FROM opened`,
+          [report.id, report.workshop_id, report.job_id]
         );
+      } catch (err) {
+        req.log.error({ err, reportId: report.id }, "failed to record report.opened");
       }
     }
 

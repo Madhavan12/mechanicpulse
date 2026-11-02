@@ -65,18 +65,20 @@ export async function reportsRoutes(app: FastifyInstance) {
 
         const items = itemIds?.length ? allItems.filter((i) => itemIds.includes(i.id)) : allItems;
 
-        if (items.length === 0) {
-          await client.query("ROLLBACK");
-          return reply.status(400).send({
-            error: "no_items",
-            message: "Add at least one inspection item before sending.",
-          });
-        }
+        // Unknown ids first: stale ids that filter down to nothing should say
+        // so, not look like a job with no items.
         if (itemIds?.length && items.length !== new Set(itemIds).size) {
           await client.query("ROLLBACK");
           return reply.status(400).send({
             error: "unknown_item",
             message: "Some of those items aren't on this job.",
+          });
+        }
+        if (items.length === 0) {
+          await client.query("ROLLBACK");
+          return reply.status(400).send({
+            error: "no_items",
+            message: "Add at least one inspection item before sending.",
           });
         }
 

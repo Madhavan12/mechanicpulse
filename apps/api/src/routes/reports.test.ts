@@ -125,6 +125,13 @@ describe("POST /api/jobs/:id/report", () => {
     expect(res.json().error).toBe("unknown_item");
   });
 
+  it("reports unknown_item, not no_items, when every requested id is stale", async () => {
+    mockClient(HAPPY_ROUTES);
+    const res = await send(app, token, { itemIds: ["00000000-0000-0000-0000-0000000000ff"] });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("unknown_item");
+  });
+
   it("returns 201 with a token, link and total", async () => {
     mockClient(HAPPY_ROUTES);
     const res = await send(app, token);
