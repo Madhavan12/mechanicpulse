@@ -186,6 +186,20 @@ describe("POST /api/jobs/:id/report", () => {
     expect(snapshots[0].params[1]).toBe(ITEM_2);
   });
 
+  it.each([
+    ["a string", "abc"],
+    ["an object", { a: 1 }],
+    ["a non-string entry", [null]],
+  ])("rejects itemIds that is %s with a 400, before touching the database", async (_label, itemIds) => {
+    mockClient(HAPPY_ROUTES);
+    connect.mockClear();
+    const res = await send(app, token, { itemIds } as never);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("bad_item_ids");
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   it("moves the job to sent and records a report.sent event", async () => {
     const { calls } = mockClient(HAPPY_ROUTES);
     await send(app, token);

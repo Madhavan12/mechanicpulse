@@ -34,6 +34,13 @@ export async function reportsRoutes(app: FastifyInstance) {
       const jobId = req.params.id;
       const itemIds = req.body?.itemIds;
 
+      if (
+        itemIds !== undefined &&
+        (!Array.isArray(itemIds) || itemIds.some((id) => typeof id !== "string"))
+      ) {
+        return reply.status(400).send({ error: "bad_item_ids", message: "itemIds must be a list of item ids." });
+      }
+
       const client = await db.connect();
       try {
         await client.query("BEGIN");

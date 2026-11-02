@@ -127,7 +127,8 @@ export async function customerReportRoutes(app: FastifyInstance) {
   app.post<{ Params: { token: string }; Body: ApproveRequest }>(
     "/api/report/:token/decision",
     async (req, reply) => {
-      const signedName = req.body?.signedName?.trim();
+      const rawName = req.body?.signedName;
+      const signedName = typeof rawName === "string" ? rawName.trim() : "";
       const decisions = req.body?.decisions;
 
       if (!signedName) {
@@ -136,7 +137,7 @@ export async function customerReportRoutes(app: FastifyInstance) {
       if (!Array.isArray(decisions) || decisions.length === 0) {
         return reply.status(400).send({ error: "no_decisions", message: "Choose approve or decline for each item." });
       }
-      if (decisions.some((d) => d.decision !== "approved" && d.decision !== "declined")) {
+      if (decisions.some((d) => !d || typeof d !== "object" || typeof d.itemId !== "string" || d.decision !== "approved" && d.decision !== "declined")) {
         return reply.status(400).send({ error: "bad_decision", message: "Each item must be approved or declined." });
       }
 

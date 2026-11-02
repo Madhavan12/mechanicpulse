@@ -309,6 +309,8 @@ describe("POST /api/report/:token/decision", () => {
     ["a blank name", { ...bothApproved, signedName: "   " }, "name_required"],
     ["no decisions", { signedName: "Alex", decisions: [] }, "no_decisions"],
     ["a decision that isn't approve or decline", { signedName: "Alex", decisions: [{ itemId: ITEM_1, decision: "maybe" }] }, "bad_decision"],
+    ["a null entry in decisions", { signedName: "Alex", decisions: [null] }, "bad_decision"],
+    ["a non-string name", { ...bothApproved, signedName: 42 }, "name_required"],
   ])("rejects %s before touching the database", async (_label, payload, error) => {
     mockClient(DECIDE_ROUTES);
     const res = await decide(payload);
