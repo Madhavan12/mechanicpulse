@@ -112,6 +112,66 @@ export interface FieldError {
   message: string;
 }
 
+/** One finding as the Active Job page shows it. (InspectionItem below is the
+ * fuller shape with media; this is what GET /api/jobs/:id returns until
+ * photos are attached.) */
+export interface Finding {
+  id: string;
+  title: string;
+  severity: Severity;
+  note: string | null;
+  priceCents: number;
+  position: number;
+  /** Photos that finished uploading, with short-lived presigned GET urls. */
+  photos: FindingPhoto[];
+}
+
+export interface FindingPhoto {
+  /** The media row id — what you pass to DELETE /api/media/:id. */
+  id: string;
+  url: string;
+}
+
+/** Most photos one finding can carry. Enforced by the API and the form. */
+export const MAX_PHOTOS_PER_FINDING = 4;
+
+export interface JobDetail {
+  id: string;
+  status: JobStatus;
+  displayStatus: JobDisplayStatus;
+  customerName: string;
+  /** E.164. Lets the mechanic text the report link from their own phone
+   * until SMS delivery is built. */
+  customerMobile: string;
+  vehicleMake: string | null;
+  vehicleModel: string | null;
+  vehicleRego: string;
+  odometerKm: number | null;
+  createdAt: string;
+  items: Finding[];
+  /** Sum of the findings' prices, in cents. */
+  totalCents: number;
+}
+
+/** POST / PATCH /api/jobs/:id/items. Price is already in integer cents —
+ * the form converts dollars before it gets here. */
+export interface SaveFindingRequest {
+  title: string;
+  severity: Severity;
+  priceCents: number;
+  note?: string;
+}
+
+export interface SaveFindingResponse {
+  item: Finding;
+}
+
+export interface FindingFieldError {
+  error: "invalid_field";
+  field: "title" | "severity" | "priceCents" | "note";
+  message: string;
+}
+
 export interface InspectionItem {
   id: string;
   jobId: string;
@@ -169,6 +229,10 @@ export interface LoginResponse {
 
 /** POST /api/media/presign — requires Authorization: Bearer <token> */
 export interface PresignRequest {
+  /** The finding this photo belongs to. When present the API creates the
+   * `media` row (pending) and returns its id. Omit only for the standalone
+   * /capture test page. */
+  inspectionItemId?: string;
   contentType: string;
   /** Bytes, after client-side compression. Used to reject anything absurd. */
   bytes: number;
@@ -179,6 +243,18 @@ export interface PresignResponse {
   uploadUrl: string;
   /** Hand this back to the API once the PUT succeeds. */
   storageKey: string;
+  /** Present when the request carried an inspectionItemId. */
+  mediaId?: string;
+}
+
+/** POST /api/media/:id/confirm — call after the PUT to S3 succeeds. */
+export interface ConfirmMediaRequest {
+  width?: number;
+  height?: number;
+}
+
+export interface ConfirmMediaResponse {
+  photo: FindingPhoto;
 }
 
 /** Everything below is week 1+. Listed now so both sides can see the shape. */

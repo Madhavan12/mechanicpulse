@@ -74,3 +74,24 @@ The original charter listed "Week 0 — upload prototype — done." It had not b
 ## Team structure note
 
 Santhosh's role (Scrum Master + Product Owner + business side) was proposed, not yet confirmed as of this writing. If his actual role differs from what's described in `CLAUDE.md`, update both files — don't assume the proposal was accepted without checking.
+
+---
+
+## Active Job follows the data model, not the Figma checklist (2 Nov 2026)
+
+The wireframe's Active Job screen has a fixed checklist, a job-level "Mechanic Notes" box and a "Parts & Labor" card. The v1 schema has none of those: it has *findings* (`inspection_items` — title, severity, note, price) with photos, and the customer report is a frozen snapshot of exactly those.
+
+**Chosen:** build the screen around findings. The mechanic adds what they found; the Estimate card is just the findings' prices summed. No checklist template, no job-level notes, no separate parts/labor lines, no "Save Draft" (each finding saves as it's added).
+
+**Why:** matches how the mechanic actually works (they find something, photograph it, price it) and what the customer approves item-by-item. A checklist template or job-level notes would need a schema migration (Madhavan's sign-off) for no part of the validation trial's question.
+
+**Revisit if:** shop visits show mechanics want a standard checklist to tick through, or a place for notes that aren't customer-facing.
+
+---
+
+## Photos: orphaned S3 files are acceptable for the trial (2 Nov 2026)
+
+Deleting a photo or a finding removes the database row but not the S3 object, and abandoned uploads leave rows and objects behind. **Accepted** for the validation trial: the volume is tiny, the bucket is private, and nothing user-visible depends on the leftovers (the row is what makes a photo appear on a finding or a report). A cleanup job is tracked under "Known gaps" in `docs/plan.md`.
+
+**Also decided:** a failed or long-abandoned (15 min) upload stops counting against the 4-photo cap, so a bad connection never locks a finding out of photos; and the API reads a photo's size from S3 at confirm time rather than trusting the browser.
+

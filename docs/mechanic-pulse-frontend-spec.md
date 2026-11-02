@@ -91,18 +91,26 @@ Not in the original Figma wireframes — spec'd here from the data model. Mobile
 - **Footer**: full-width primary "Create Job" + outline "Cancel" (back to Job List). Mobile has the 34px safe-area bottom padding.
 - **Validation**: inline, per field, on submit; the server re-validates everything and its messages are shown if it disagrees.
 - **Repeat customers/vehicles**: a mobile or rego the workshop has seen before is reused, not duplicated (the schema is unique on both).
-- **Action**: Create Job → the new job's Active Job page. Until Active Job exists, → Job List.
+- **Action**: Create Job → the new job's Active Job page (`/jobs/[id]`).
 - **Out of scope for now**: customer/rego lookup or autocomplete, VIN, year, photos (those belong to Active Job), checking SMS opt-out.
 
 ### Active Job (Desktop 1280px / Mobile 390px)
-The core mechanic workflow — inspecting a vehicle and writing it up.
+The core mechanic workflow — inspecting a vehicle and writing it up. Route: `/jobs/[id]`. **Build status:** all of it is built — findings, photos, the Estimate card, Send Report, and read-only-after-send.
+
+> **Deviation from the Figma wireframe (decided 2026-11-02):** the wireframe shows a fixed checklist plus a "Mechanic Notes" card and a "Parts & Labor" card. The data model (`docs/data-model.md`) has neither a checklist template nor job-level notes or parts/labor lines — it has *findings* (`inspection_items`: title, severity, note, price, photos). The page follows the data model. Reasoning in `docs/product-decisions.md`.
+
 - **Header**: same pattern as Job List (desktop: brand + shift pill + name; mobile: back chevron "‹ Jobs" + shift pill)
-- **Job context strip**: vehicle + rego, "Customer · Job # · Odometer", status pill
-- **Inspection checklist** (list-bar pattern): each row = item name + one-line note + status chip (Good=green / Monitor=amber / Urgent=red)
-  - Desktop: two columns — checklist ~65% width on the left; right rail (~35%) has a "Mechanic Notes" card (textarea + "+ Add Photo" button) and a "Parts & Labor" card (itemized lines + total)
-  - Mobile: single column, stacked — checklist, then Notes card, then Parts & Labor card
-- **Footer** (fixed to bottom): "Send Report to Customer" (primary) + "Save Draft" (outline). Mobile footer has the 34px safe-area bottom padding.
-- **Action**: "Send Report to Customer" → navigates to Customer Report
+- **Job context strip**: vehicle + rego, "Customer · Odometer", status pill
+- **Findings list** (list-bar pattern): one bar per finding the mechanic has added — title, one-line note, price, photo count, severity chip (green = Good, amber = Monitor, red = Urgent). Tap a bar to edit it. Empty state: "No findings yet — add the first one."
+- **"+ Add Finding"** opens an add/edit form (bottom sheet on mobile, side panel or modal on desktop):
+  - Title (required), Severity (required — three large tappable choices, not a dropdown), Price in dollars (required; `0` allowed for a plain "Good" note), Note (optional)
+  - Photos: "+ Add Photo" opens the camera/photo picker; each photo is compressed, uploaded straight to S3, and shown as a thumbnail with its own state (uploading with progress / failed with Retry / ready). Up to 4 per finding.
+  - Save, Cancel, and Delete (edit only, with a confirm)
+  - Desktop layout: findings list ~65% on the left; the right rail (~35%) is the **Estimate** card — a flat receipt-style list of the findings that have a price, plus the total (see the flat-divider exception above). Mobile: list, then Estimate, stacked.
+- **Autosave**: every finding is saved to the server when the form is saved; there is no separate "Save Draft" button (the wireframe's is dropped as redundant).
+- **Footer** (fixed to bottom): **"Send Report to Customer"** (primary). Disabled with no findings, or while any photo is still uploading. A confirm step comes first ("Send this report? … the findings can't be changed"). On success the page shows the report link with a Copy button and a "Text it to <first name>" button (an `sms:` link, so it opens the mechanic's own Messages), once — the raw link is never retrievable again. Texting it is a later task (SMS provider undecided), so for now the mechanic sends the link themselves. Mobile footer has the 34px safe-area bottom padding.
+- **After sending** the job is read-only (status `sent`): findings can't be added, edited or deleted, and the page says when the report was sent. A revised quote is a new report (data-model decision), not in scope here.
+- **Action**: "Send Report to Customer" → send, then show the link (the wireframe's navigation to Customer Report is replaced — the customer page is for the customer's phone, not the mechanic's).
 
 ### Customer Report (Mobile only, 390px — no desktop version)
 What the customer sees when they open the link on their phone.
@@ -121,10 +129,10 @@ Home ──(Log In / Get Started)──▶ Login
 Login ──(Log In)──▶ Job List
 Job List ──(+ New Job)──▶ Create Job ──(Create Job)──▶ Active Job
 Job List ──(Open on a job)──▶ Active Job
-Active Job ──(Send Report to Customer)──▶ Customer Report
+Active Job ──(Send Report to Customer)──▶ report link shown to the mechanic; the customer opens it separately
 ```
 
-Home is a separate public route; Login/Job List/Active Job are the authenticated mechanic app; Customer Report is a standalone link-accessed page (no auth, no nav back into the app).
+Home is a separate public route; Login/Job List/Create Job/Active Job are the authenticated mechanic app; Customer Report is a standalone link-accessed page (no auth, no nav back into the app).
 
 ## 6. Suggested component inventory
 

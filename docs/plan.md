@@ -4,7 +4,7 @@ Current status and sprint structure. Update this as sprints progress — this is
 
 ---
 
-## Current status (as of 1 Oct 2026)
+## Current status (as of 2 Nov 2026)
 
 - **Week 0 infra: rebuilt and live.** AWS moved to a new account with IAM Identity Center (SSO) access — see `docs/infra-decisions.md` and the onboarding steps in `docs/aws-setup.md`. No longer a blocker.
 - **Week 0 field test: Run 1 done, Run 2 still outstanding.** See `docs/spike-results.md` for the log. Run 1 (compression, on 4G) found and fixed two real bugs — iPhone Safari silently falling back to PNG instead of WebP (made files *bigger*, not smaller), and an S3 CORS wildcard-origin bug. **Still not tested:** fine-detail visibility, upload time on a weak signal, survival of phone-lock mid-upload, survival of tab-reload mid-upload. These need a "Run 2" in an actual weak-signal spot (basement carpark, lift lobby). This — not the code, not Run 1 — remains the real Week 0 gate per the charter.
@@ -12,7 +12,7 @@ Current status and sprint structure. Update this as sprints progress — this is
 - **v1 data model: done.** Full Postgres schema, seed data, and ERD in `docs/data-model.md`.
 - **Login: done.** Real email/password auth against the `mechanics` table, bcrypt + JWT, per `docs/test-cases.md`.
 - **Upload/capture: working, deferred fine-tuning.** Presign + compress + upload flow works end-to-end against real S3; not yet wired into a real job/inspection-item (currently a standalone `/capture` test page).
-- **Job List: done. Create Job: in progress** — see Immediate next tasks.
+- **Job List and Create Job: done.** Active Job: in progress — see Immediate next tasks.
 - **Customer report page + send/approve API: done** (PR #40). Nothing on the mechanic side calls the send endpoint yet, and SMS isn't implemented — the link isn't texted.
 - AWS staging environment — not yet stood up. Needs a joint discussion with Madhavan before building — he owns the AWS account and Terraform state. (The old "accept Madhavan's IAM invitation" step referenced below is superseded by the SSO onboarding in `docs/aws-setup.md`.)
 - Production environment — intentionally not started. Will be created empty/idle, not touched further, until much later.
@@ -46,8 +46,14 @@ Current status and sprint structure. Update this as sprints progress — this is
 4. **Run 2 of the Week 0 field test** (Madhavan): basement carpark on one bar, lock the phone mid-upload, reload the tab mid-upload, check compressed photo clarity against a real worn/cracked part. Log results in `docs/spike-results.md`. This is the real gate — the code existing isn't the milestone, the four field numbers are.
 5. Complete SSO onboarding (`docs/aws-setup.md`) and have the staging-environment discussion with Madhavan (do not build staging AWS infra solo before this conversation happens)
 6. ~~Job List page~~ — done: `GET /api/jobs` endpoint, `AppHeader`/`StatusPill`/`SegmentedControl`/`ListBar` components, the page itself, and a "Create Job" button (button only — it navigates to `/jobs/new`, which doesn't exist yet, that's task 7). `docs/mechanic-pulse-frontend-spec.md`'s Job List section updated to describe the button.
-7. **Create Job page** — in progress (`feature/create-job`). `/jobs/new` form (customer name + mobile, rego, make/model, odometer) backed by `POST /api/jobs`, which finds-or-creates the customer and vehicle and inserts the job in one transaction, writing a `job.created` event. Requirements in `docs/mechanic-pulse-frontend-spec.md` (Create Job); cases in `docs/test-cases.md`. Wiring a photo to an inspection item is *not* part of this — that's Active Job. Job List's "+ New Job" moves from `/capture` to `/jobs/new` when this lands.
-8. **Active Job page** (the full checklist/notes/parts-and-labor screen) — after Create Job. (`/login`'s redirect already moved to the real Job List once it existed — done ahead of this.)
+7. ~~Create Job page~~ — done (PR #44, committed under the branch name `feature/active-job`): `/jobs/new` + `POST /api/jobs`. Job List's "+ New Job" now opens it.
+8. **Active Job page** — built on `feature/view-job`: `GET /api/jobs/:id`, finding add/edit/delete, `/jobs/[id]` with findings, Estimate, photos (presign creates a `pending` `media` row → browser PUTs to S3 → `confirm` checks the object and marks it `ready`) and Send Report (confirm step, link shown once, `sms:` shortcut). Create Job lands on it. Real-S3 upload verified 2 Nov 2026 (`E2E_REAL_S3=1 npx playwright test photos-and-send`, both browsers). **Still to do: a phone test** (camera, weak signal) — that's Week 0 Run 2.
+9. **SMS delivery of the report link** — blocked on the Twilio vs. AU aggregator decision. Until then the mechanic copies the link.
+
+## Known gaps (deliberate, not forgotten)
+
+- **Orphaned S3 objects.** Removing a photo, or deleting a finding, deletes the `media` row but leaves the file in the bucket; abandoned and failed uploads also leave rows/objects behind. Agreed 2 Nov 2026 as fine for the trial. Needs a cleanup job (the `media_stuck_idx` partial index exists for finding stuck uploads) before real volume or a storage-cost review — and a decision with Madhavan on whether it runs as a Lambda/cron.
+- **Dev-seed photos don't exist in S3.** The seed's `dev/workshop-1/...jpg` keys are placeholders, so they show as broken thumbnails in the dev app.
 
 ## Open items still needing team decisions
 

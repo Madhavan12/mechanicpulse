@@ -29,4 +29,6 @@ npm run test:e2e                      # whole suite; Playwright starts the API a
 npx playwright test create-job        # one spec
 ```
 
+The suite resets the database to the seed before each test and again when it finishes, so the dev app is usable afterwards.
+
 To log in by hand (`owner@demo.test` / `password123`), the demo user must be in the database: run the e2e suite once, or load `db/migrations/0001_initial_schema.sql` then `db/seed/dev_seed.sql`.

@@ -1,15 +1,21 @@
 import type {
   ApproveRequest,
   ApproveResponse,
+  ConfirmMediaRequest,
+  ConfirmMediaResponse,
   CreateJobRequest,
   CreateJobResponse,
   CustomerReportResponse,
   FieldError,
+  FindingFieldError,
+  JobDetail,
   ListJobsResponse,
   LoginRequest,
   LoginResponse,
   PresignRequest,
   PresignResponse,
+  SaveFindingRequest,
+  SaveFindingResponse,
   SendReportResponse,
 } from "../../../../packages/shared/types";
 
@@ -63,7 +69,7 @@ export async function listJobs(): Promise<ListJobsResponse> {
 
 /** Carries the API's per-field message so the form can show it by the input. */
 export class FieldValidationError extends Error {
-  constructor(public field: FieldError["field"], message: string) {
+  constructor(public field: FieldError["field"] | FindingFieldError["field"], message: string) {
     super(message);
   }
 }
@@ -86,21 +92,85 @@ export async function createJob(body: CreateJobRequest): Promise<CreateJobRespon
   return res.json();
 }
 
-export async function presign(body: PresignRequest): Promise<PresignResponse> {
+/** An API error that remembers its HTTP status, so a page can tell
+ * "not found" and "locked" apart from "something broke". */
+export class ApiError extends Error {
+  constructor(public status: number, message: string, public code?: string) {
+    super(message);
+  }
+}
+
+async function authed(path: string, init: RequestInit = {}, fallback = "Something went wrong."): Promise<Response> {
   const token = getToken();
-  const res = await fetch(`${API_URL}/api/media/presign`, {
-    method: "POST",
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: "Could not get an upload URL." }));
-    throw new Error(err.message || "Could not get an upload URL.");
+    const err = await res.json().catch(() => ({}));
+    if (err.error === "invalid_field") throw new FieldValidationError(err.field, err.message);
+    throw new ApiError(res.status, err.message || fallback, err.error);
   }
+  return res;
+}
+
+export async function getJob(jobId: string): Promise<JobDetail> {
+  return (await authed(`/api/jobs/${jobId}`, {}, "Could not load this job.")).json();
+}
+
+export async function addFinding(jobId: string, body: SaveFindingRequest): Promise<SaveFindingResponse> {
+  const res = await authed(`/api/jobs/${jobId}/items`, { method: "POST", body: JSON.stringify(body) }, "Could not save the finding.");
   return res.json();
+}
+
+export async function updateFinding(jobId: string, itemId: string, body: SaveFindingRequest): Promise<SaveFindingResponse> {
+  const res = await authed(
+    `/api/jobs/${jobId}/items/${itemId}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    "Could not save the finding."
+  );
+  return res.json();
+}
+
+export async function deleteFinding(jobId: string, itemId: string): Promise<void> {
+  await authed(`/api/jobs/${jobId}/items/${itemId}`, { method: "DELETE" }, "Could not delete the finding.");
+}
+
+export async function presign(body: PresignRequest): Promise<PresignResponse> {
+  const res = await authed(
+    "/api/media/presign",
+    { method: "POST", body: JSON.stringify(body) },
+    "Could not get an upload URL."
+  );
+  return res.json();
+}
+
+/** Tell the API the PUT to S3 finished. It checks the object really exists
+ * before marking the photo ready. */
+export async function confirmMedia(mediaId: string, body: ConfirmMediaRequest): Promise<ConfirmMediaResponse> {
+  const res = await authed(
+    `/api/media/${mediaId}/confirm`,
+    { method: "POST", body: JSON.stringify(body) },
+    "The photo didn't finish uploading."
+  );
+  return res.json();
+}
+
+/** Best-effort: the measurement layer wants to know an upload failed, but
+ * failing to say so must never mask the real error shown to the mechanic. */
+export async function reportUploadFailed(mediaId: string, reason: string): Promise<void> {
+  try {
+    await authed(`/api/media/${mediaId}/fail`, { method: "POST", body: JSON.stringify({ reason }) });
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function deleteMedia(mediaId: string): Promise<void> {
+  await authed(`/api/media/${mediaId}`, { method: "DELETE" }, "Could not remove the photo.");
 }
 
 /* ---------------- Customer report (no auth — the token is the key) ------- */

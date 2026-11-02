@@ -23,6 +23,13 @@ test.describe("Create Job — page", () => {
     await page.getByLabel("Odometer (km)").fill("120000");
     await page.getByRole("button", { name: "Create Job" }).click();
 
+    // Lands on the new job's page, empty and ready for its first finding.
+    await page.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
+    await expect(page.getByRole("heading", { name: "Mazda 3 — XYZ789" })).toBeVisible();
+    await expect(page.getByText("No findings yet")).toBeVisible();
+
+    // And the list shows it as Not Started.
+    await page.getByRole("button", { name: "‹ Jobs" }).click();
     await page.waitForURL("**/jobs");
     const card = page.locator("div.bg-card", { hasText: "Mazda 3" }).first();
     await expect(card).toBeVisible();

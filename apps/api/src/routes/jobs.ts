@@ -1,11 +1,14 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db";
 import { parseCreateJob } from "../lib/jobInput";
+import { loadPhotos } from "../lib/photos";
+import { toFinding } from "./findings";
 import type {
   CreateJobRequest,
   CreateJobResponse,
   JobStatus,
   JobDisplayStatus,
+  JobDetail,
   JobListItem,
   ListJobsResponse,
 } from "../../../../packages/shared/types";
@@ -19,6 +22,18 @@ interface JobRow {
   vehicle_rego: string;
   customer_name: string;
   has_items: boolean;
+}
+
+interface DetailRow {
+  id: string;
+  status: JobStatus;
+  created_at: string;
+  odometer_km: number | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+  vehicle_rego: string;
+  customer_name: string;
+  customer_mobile: string;
 }
 
 function displayStatusFor(status: JobStatus, hasItems: boolean): JobDisplayStatus {
@@ -56,6 +71,52 @@ export async function jobsRoutes(app: FastifyInstance) {
     }));
 
     const body: ListJobsResponse = { jobs };
+    return reply.send(body);
+  });
+
+  app.get<{ Params: { id: string } }>("/api/jobs/:id", { preHandler: app.authenticate }, async (req, reply) => {
+    const { workshopId } = req.user as { workshopId: string };
+    const jobId = req.params.id;
+    const notFound = () => reply.status(404).send({ error: "not_found", message: "That job doesn't exist." });
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobId)) return notFound();
+
+    // Scoped by workshop in the query itself: someone else's job and a job
+    // that doesn't exist look identical.
+    const { rows } = await db.query<DetailRow>(
+      `SELECT j.id, j.status, j.created_at, j.odometer_km,
+              v.make AS vehicle_make, v.model AS vehicle_model, v.rego AS vehicle_rego,
+              c.name AS customer_name, c.mobile_e164 AS customer_mobile
+         FROM jobs j
+         JOIN vehicles v ON v.workshop_id = j.workshop_id AND v.id = j.vehicle_id
+         JOIN customers c ON c.workshop_id = j.workshop_id AND c.id = j.customer_id
+        WHERE j.id = $1 AND j.workshop_id = $2`,
+      [jobId, workshopId]
+    );
+    const job = rows[0];
+    if (!job) return notFound();
+
+    const { rows: itemRows } = await db.query(
+      `SELECT id, title, severity, note, price_cents, position
+         FROM inspection_items WHERE job_id = $1 ORDER BY position, created_at`,
+      [jobId]
+    );
+    const photos = await loadPhotos(app, itemRows.map((r) => r.id));
+    const items = itemRows.map((r) => toFinding(r, photos.get(r.id)));
+
+    const body: JobDetail = {
+      id: job.id,
+      status: job.status,
+      displayStatus: displayStatusFor(job.status, items.length > 0),
+      customerName: job.customer_name,
+      customerMobile: job.customer_mobile,
+      vehicleMake: job.vehicle_make,
+      vehicleModel: job.vehicle_model,
+      vehicleRego: job.vehicle_rego,
+      odometerKm: job.odometer_km,
+      createdAt: job.created_at,
+      items,
+      totalCents: items.reduce((sum, i) => sum + i.priceCents, 0),
+    };
     return reply.send(body);
   });
 
