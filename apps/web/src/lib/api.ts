@@ -1,4 +1,14 @@
-import type { LoginRequest, LoginResponse, PresignRequest, PresignResponse, ListJobsResponse } from "../../../../packages/shared/types";
+import type {
+  ApproveRequest,
+  ApproveResponse,
+  CustomerReportResponse,
+  ListJobsResponse,
+  LoginRequest,
+  LoginResponse,
+  PresignRequest,
+  PresignResponse,
+  SendReportResponse,
+} from "../../../../packages/shared/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const TOKEN_KEY = "mp_token";
@@ -61,6 +71,51 @@ export async function presign(body: PresignRequest): Promise<PresignResponse> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: "Could not get an upload URL." }));
     throw new Error(err.message || "Could not get an upload URL.");
+  }
+  return res.json();
+}
+
+/* ---------------- Customer report (no auth — the token is the key) ------- */
+
+/** Deliberately sends no Authorization header. The customer has no account;
+ * the token in the URL is the whole credential. */
+export async function getCustomerReport(token: string): Promise<CustomerReportResponse> {
+  const res = await fetch(`${API_URL}/api/report/${encodeURIComponent(token)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "Could not load this report." }));
+    throw new Error(err.message || "Could not load this report.");
+  }
+  return res.json();
+}
+
+export async function submitReportDecision(token: string, body: ApproveRequest): Promise<ApproveResponse> {
+  const res = await fetch(`${API_URL}/api/report/${encodeURIComponent(token)}/decision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "Could not save your decision." }));
+    throw new Error(err.message || "Could not save your decision.");
+  }
+  return res.json();
+}
+
+/** POST /api/jobs/:id/report — mechanic side. The response carries the raw
+ * token once and only once; there's no way to read it back later. */
+export async function sendReport(jobId: string, itemIds?: string[]): Promise<SendReportResponse> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/api/jobs/${jobId}/report`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(itemIds?.length ? { itemIds } : {}),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "Could not send the report." }));
+    throw new Error(err.message || "Could not send the report.");
   }
   return res.json();
 }

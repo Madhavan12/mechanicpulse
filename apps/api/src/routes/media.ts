@@ -1,21 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "crypto";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { BUCKET, s3 } from "../lib/s3";
 import type { PresignRequest, PresignResponse } from "../../../../packages/shared/types";
-
-const BUCKET = process.env.S3_BUCKET;
-const REGION = process.env.AWS_REGION || "ap-southeast-2";
-
-if (!BUCKET) {
-  console.error("S3_BUCKET is not set. Copy .env.example to .env and fill it in.");
-  process.exit(1);
-}
-
-const s3 = new S3Client({
-  region: REGION,
-  requestChecksumCalculation: "WHEN_REQUIRED",
-});
 
 const ALLOWED_TYPES = ["image/webp", "image/jpeg", "image/png"];
 const MAX_BYTES = 10 * 1024 * 1024;

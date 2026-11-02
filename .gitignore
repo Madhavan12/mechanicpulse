@@ -165,3 +165,7 @@ vite.config.ts.timestamp-*
 
 # graphify — local knowledge-graph cache, not part of the product
 graphify-out/
+
+# Claude Code scratch output — keep local
+Claude outputs/
+.claude/
