@@ -223,6 +223,20 @@ export async function mediaRoutes(app: FastifyInstance) {
             await client.query("ROLLBACK");
             return locked(reply);
           }
+          // A stale pending row stops counting toward the cap after 15 minutes,
+          // so re-check it now that the job is locked.
+          const { rows: ready } = await client.query(
+            `SELECT count(*)::int AS n FROM media WHERE inspection_item_id = $1 AND state = 'ready'`,
+            [media.inspection_item_id]
+          );
+          if (ready[0].n >= MAX_PHOTOS_PER_FINDING) {
+            await client.query(`UPDATE media SET state = 'failed' WHERE id = $1`, [media.id]);
+            await client.query("COMMIT");
+            return reply.status(409).send({
+              error: "photo_limit",
+              message: `A finding can have up to ${MAX_PHOTOS_PER_FINDING} photos.`,
+            });
+          }
           await client.query(
             `UPDATE media
                 SET state = 'ready', uploaded_at = now(), bytes = $2, width = $3, height = $4

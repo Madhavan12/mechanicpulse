@@ -36,6 +36,7 @@ function mockClient(extra: Route[] = []) {
     ...extra,
     { match: /FOR UPDATE OF j/i, rows: [{ job_id: JOB_ID, status: "open" }] },
     { match: /SELECT status FROM jobs/i, rows: [{ status: "open" }] },
+    { match: /FROM media WHERE inspection_item_id = \$1 AND state = 'ready'/i, rows: [{ n: 0 }] },
     { match: /count\(\*\) FILTER/i, rows: [{ n: 0, next_position: 0 }] },
     { match: /INSERT INTO media/i, rows: [{ id: MEDIA_ID }] },
     { match: /INSERT INTO events/i },
@@ -289,6 +290,17 @@ describe("media routes", () => {
       expect(res.json().error).toBe("job_locked");
       expect(calls.some((c) => /UPDATE media/i.test(c.sql))).toBe(false);
       expect(calls.some((c) => /ROLLBACK/i.test(c.sql))).toBe(true);
+    });
+
+    it("409s photo_limit if the finding filled up while this stale upload was in flight", async () => {
+      query.mockResolvedValueOnce({ rows: [mediaRow()] });
+      s3send.mockResolvedValueOnce({ ContentLength: 1234 });
+      const { calls } = mockClient([{ match: /FROM media WHERE inspection_item_id = \$1 AND state = 'ready'/i, rows: [{ n: 4 }] }]);
+      const res = await confirm();
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toBe("photo_limit");
+      expect(calls.some((c) => /SET state = 'ready'/i.test(c.sql))).toBe(false);
+      expect(calls.some((c) => /SET state = 'failed'/i.test(c.sql))).toBe(true);
     });
 
     it("ignores nonsense dimensions rather than storing them", async () => {
