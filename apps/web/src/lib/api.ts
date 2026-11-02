@@ -1,7 +1,10 @@
 import type {
   ApproveRequest,
   ApproveResponse,
+  CreateJobRequest,
+  CreateJobResponse,
   CustomerReportResponse,
+  FieldError,
   ListJobsResponse,
   LoginRequest,
   LoginResponse,
@@ -54,6 +57,31 @@ export async function listJobs(): Promise<ListJobsResponse> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: "Could not load jobs." }));
     throw new Error(err.message || "Could not load jobs.");
+  }
+  return res.json();
+}
+
+/** Carries the API's per-field message so the form can show it by the input. */
+export class FieldValidationError extends Error {
+  constructor(public field: FieldError["field"], message: string) {
+    super(message);
+  }
+}
+
+export async function createJob(body: CreateJobRequest): Promise<CreateJobResponse> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/api/jobs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "Could not create the job." }));
+    if (err.error === "invalid_field") throw new FieldValidationError(err.field, err.message);
+    throw new Error(err.message || "Could not create the job.");
   }
   return res.json();
 }
