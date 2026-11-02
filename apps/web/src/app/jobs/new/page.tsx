@@ -85,10 +85,8 @@ export default function NewJobPage() {
 
     setSubmitting(true);
     try {
-      await createJob(body);
-      // Active Job doesn't exist yet — land on the list, where the new job
-      // sits at the top as Not Started. Point this at /jobs/<id> once it does.
-      router.push("/jobs");
+      const { jobId } = await createJob(body);
+      router.push(`/jobs/${jobId}`);
     } catch (err) {
       if (err instanceof FieldValidationError) setErrors({ [err.field]: err.message });
       else setFormError(err instanceof Error ? err.message : "Could not create the job.");
