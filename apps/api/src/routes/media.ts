@@ -54,6 +54,13 @@ async function findOwnedMedia(mediaId: string, workshopId: string): Promise<Medi
   return rows[0] ?? null;
 }
 
+/** Lock the job row inside the caller's transaction and report whether it is
+ * still open, so a report send can't slip in between the check and the write. */
+async function lockJobIsOpen(client: { query: (sql: string, params: unknown[]) => Promise<{ rows: { status: string }[] }> }, jobId: string): Promise<boolean> {
+  const { rows } = await client.query(`SELECT status FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
+  return rows[0]?.status === "open";
+}
+
 function isMissingObject(err: unknown): boolean {
   const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
   return e?.name === "NotFound" || e?.name === "NoSuchKey" || e?.$metadata?.httpStatusCode === 404;
@@ -212,6 +219,10 @@ export async function mediaRoutes(app: FastifyInstance) {
         const client = await db.connect();
         try {
           await client.query("BEGIN");
+          if (!(await lockJobIsOpen(client, media.job_id))) {
+            await client.query("ROLLBACK");
+            return locked(reply);
+          }
           await client.query(
             `UPDATE media
                 SET state = 'ready', uploaded_at = now(), bytes = $2, width = $3, height = $4
@@ -290,6 +301,10 @@ export async function mediaRoutes(app: FastifyInstance) {
     const client = await db.connect();
     try {
       await client.query("BEGIN");
+      if (!(await lockJobIsOpen(client, media.job_id))) {
+        await client.query("ROLLBACK");
+        return locked(reply);
+      }
       await client.query(`DELETE FROM media WHERE id = $1`, [media.id]);
       await client.query(
         `INSERT INTO events (workshop_id, job_id, type, actor, mechanic_id, payload)

@@ -35,6 +35,7 @@ function mockClient(extra: Route[] = []) {
   const routes: Route[] = [
     ...extra,
     { match: /FOR UPDATE OF j/i, rows: [{ job_id: JOB_ID, status: "open" }] },
+    { match: /SELECT status FROM jobs/i, rows: [{ status: "open" }] },
     { match: /count\(\*\) FILTER/i, rows: [{ n: 0, next_position: 0 }] },
     { match: /INSERT INTO media/i, rows: [{ id: MEDIA_ID }] },
     { match: /INSERT INTO events/i },
@@ -279,6 +280,17 @@ describe("media routes", () => {
       expect(s3send).not.toHaveBeenCalled();
     });
 
+    it("409s and writes nothing if the report is sent between the check and the write", async () => {
+      query.mockResolvedValueOnce({ rows: [mediaRow()] });
+      s3send.mockResolvedValueOnce({ ContentLength: 1234 });
+      const { calls } = mockClient([{ match: /SELECT status FROM jobs/i, rows: [{ status: "sent" }] }]);
+      const res = await confirm();
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toBe("job_locked");
+      expect(calls.some((c) => /UPDATE media/i.test(c.sql))).toBe(false);
+      expect(calls.some((c) => /ROLLBACK/i.test(c.sql))).toBe(true);
+    });
+
     it("ignores nonsense dimensions rather than storing them", async () => {
       query.mockResolvedValueOnce({ rows: [mediaRow()] });
       s3send.mockResolvedValueOnce({ ContentLength: 1000 });
@@ -349,6 +361,13 @@ describe("media routes", () => {
     it("409s once the report has been sent", async () => {
       query.mockResolvedValueOnce({ rows: [mediaRow({ state: "ready", job_status: "sent" })] });
       const { calls } = mockClient();
+      expect((await remove()).statusCode).toBe(409);
+      expect(calls.some((c) => /DELETE FROM media/i.test(c.sql))).toBe(false);
+    });
+
+    it("409s and deletes nothing if the report is sent between the check and the write", async () => {
+      query.mockResolvedValueOnce({ rows: [mediaRow({ state: "ready" })] });
+      const { calls } = mockClient([{ match: /SELECT status FROM jobs/i, rows: [{ status: "sent" }] }]);
       expect((await remove()).statusCode).toBe(409);
       expect(calls.some((c) => /DELETE FROM media/i.test(c.sql))).toBe(false);
     });
