@@ -9,6 +9,18 @@ variable "aws_profile" {
   default     = "mechanicpulse"
 }
 
+variable "domain_name" {
+  description = "Friendly address for the site, e.g. staging.mechanicpulse.com. Empty keeps the xxxx.cloudfront.net address. See docs/deploy-staging.md, \"Use your own domain\"."
+  type        = string
+  default     = ""
+}
+
+variable "dns_zone_name" {
+  description = "Set to the registered domain (e.g. mechanicpulse.app) when it was registered in Route 53, so its existing zone is used. Leave empty for a domain at another registrar."
+  type        = string
+  default     = ""
+}
+
 variable "api_image_tag" {
   description = "Tag of the API image in ECR to run."
   type        = string

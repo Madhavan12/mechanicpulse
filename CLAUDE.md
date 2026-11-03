@@ -27,16 +27,16 @@ One repo: `Madhavan12/mechanicpulse`.
 
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js (React), **browser-only, no native wrapper** — mechanic app and customer page both run in Safari/Chrome, no install |
+| Frontend | Next.js (React). Today both the mechanic app and the customer page run in Safari/Chrome, no install. The customer page stays browser-only for good; the mechanic app is to be wrapped with Capacitor later (decided 3 Nov 2026, parked until after the POC) — see Mobile below |
 | Backend | Node.js / Fastify |
 | Database | PostgreSQL on Amazon RDS |
 | Object storage | Amazon S3 — presigned URL, direct browser→S3 upload, never through the API. **Note: the original spike's bucket/IAM setup was lost and is being rebuilt by Madhavan as of 25 Sep 2026 — check `docs/plan.md` for current status before assuming a bucket exists.** |
 | SMS | **Twilio** for the POC (chosen 3 Nov 2026), behind a provider interface so an AU aggregator can replace it — used only for the customer report link, NOT for mechanic login |
 | Auth (mechanic) | Email + password. bcrypt hash + JWT session token + Fastify middleware. NOT phone/OTP. NOT Keycloak. |
 | Auth (customer) | None — long random single-use `report_token` in the SMS link, expires after 7 days |
-| Hosting | AWS — Amplify Hosting or Fargate for the web app; Fargate or Lambda for the API (final call is Madhavan's). **Staging (written 3 Nov 2026, for Madhavan's review):** both on Fargate behind an ALB and CloudFront — see `docs/deploy-staging.md` |
+| Hosting | AWS — Amplify Hosting or Fargate for the web app; Fargate or Lambda for the API (final call is Madhavan's). **Staging (written 3 Nov 2026, for Madhavan's review):** both on Fargate behind an ALB and CloudFront — see `docs/deploy-staging.md`. **Staging address:** `https://staging.mechanicpulse.app` (3 Nov 2026) |
 | IaC | Terraform |
-| Mobile | **Deferred.** No Capacitor, no native app, no App Store work right now. Documented as a future option only — see `docs/product-decisions.md`. Do not add Capacitor/React Native without this being explicitly revisited. |
+| Mobile | **Decided, parked (3 Nov 2026):** a Capacitor wrapper for the *mechanic app only*, one codebase, after the POC. Not started: do not add Capacitor or native projects until Akash says to begin. React Native and a second codebase stay rejected. The production app must bundle the web code, not load a URL — see `docs/product-decisions.md`, "Mobile app: Capacitor wrapper". |
 
 ## Data model (v1)
 
@@ -52,14 +52,14 @@ Rules to keep: every tenant row carries `workshop_id` (composite FKs block cross
 
 - Keycloak, or any third-party identity provider, for mechanic auth
 - Phone number + OTP login for mechanics
-- Capacitor, React Native, or any native app work, unless explicitly asked
+- React Native, or any native rewrite. Capacitor is the chosen wrapper but is **parked**: don't add it until Akash says to start
 - A second/separate codebase for mobile
 
-These were all considered and deliberately rejected. Full reasoning is in `docs/product-decisions.md`. If a task seems to call for one of these, stop and ask rather than assuming the earlier decision has changed.
+These were considered and rejected (Capacitor was chosen later and is parked). Full reasoning is in `docs/product-decisions.md`. If a task seems to call for one of these, stop and ask rather than assuming the earlier decision has changed.
 
 ## Where the fuller detail lives
 
-- `docs/product-decisions.md` — the "why" behind every major product/architecture call (stack, auth, mobile-deferred), in more depth than this file
+- `docs/product-decisions.md` — the "why" behind every major product/architecture call (stack, auth, SMS, hosting, the Capacitor decision), in more depth than this file
 - `docs/infra-decisions.md` — Madhavan's infra playbook (AWS credential gotchas, SDK checksum bugs, and whatever he adds going forward). Different scope from product-decisions.md — check here first for any AWS/deployment error that looks like a signing or credentials issue.
 - `docs/plan.md` — sprint plan, current status, what's next
 - `docs/design.md` — visual design decisions (color palette, usage rules) locked in before wireframing

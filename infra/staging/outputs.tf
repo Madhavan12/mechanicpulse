@@ -3,6 +3,11 @@ output "site_url" {
   value       = local.site_url
 }
 
+output "domain_name_servers" {
+  description = "Only for a domain at another registrar: add these as NS records for the subdomain. Empty otherwise."
+  value       = local.custom_domain && !local.existing_zone ? aws_route53_zone.site[0].name_servers : []
+}
+
 output "twilio_status_callback" {
   description = "Delivery-receipt URL the API gives Twilio automatically (shown for reference)."
   value       = "${local.site_url}/api/sms/twilio/status"
