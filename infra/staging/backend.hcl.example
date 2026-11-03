@@ -1,0 +1,7 @@
+# Copy to backend.hcl (gitignored) and fill in the bucket from docs/deploy-staging.md step 2.
+bucket       = "mechanicpulse-tfstate-staging-<account-id>"
+key          = "staging/terraform.tfstate"
+region       = "ap-southeast-2"
+profile      = "mechanicpulse"
+encrypt      = true
+use_lockfile = true

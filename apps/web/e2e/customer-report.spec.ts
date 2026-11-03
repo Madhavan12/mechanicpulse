@@ -135,7 +135,7 @@ test.describe("Customer report", () => {
 
     await test.step("leaves a complete funnel in events", async () => {
       expect(await scalar("SELECT string_agg(type, ' -> ' ORDER BY id) FROM events")).toBe(
-        "job.created -> report.sent -> report.opened -> approval.submitted"
+        "job.created -> report.sent -> sms.sent -> report.opened -> approval.submitted"
       );
       // Only the approved item's price — what the shop is cleared to bill.
       expect(await scalar("SELECT payload->>'approvedTotalCents' FROM events WHERE type = 'approval.submitted'")).toBe(

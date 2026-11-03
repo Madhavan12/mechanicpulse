@@ -19,7 +19,9 @@ import type {
   SendReportResponse,
 } from "../../../../packages/shared/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Unset = local dev. Set to "" (deployed) = same origin: the page and the API
+// share one address, so requests go to /api/... with no CORS involved.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const TOKEN_KEY = "mp_token";
 const MECHANIC_KEY = "mp_mechanic";
 
@@ -215,6 +217,14 @@ export async function sendReport(jobId: string, itemIds?: string[]): Promise<Sen
     const err = await res.json().catch(() => ({ message: "Could not send the report." }));
     throw new Error(err.message || "Could not send the report.");
   }
+  return res.json();
+}
+
+/** POST /api/jobs/:id/report/resend — revokes the old link and issues a new
+ * one for the same quote, texting it. Like sendReport, the raw link is
+ * returned only here. */
+export async function resendReport(jobId: string): Promise<SendReportResponse> {
+  const res = await authed(`/api/jobs/${jobId}/report/resend`, { method: "POST" }, "Could not send a new link.");
   return res.json();
 }
 

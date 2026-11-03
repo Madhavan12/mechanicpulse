@@ -112,6 +112,7 @@ describe("GET /api/jobs/:id", () => {
     vehicle_rego: "ABC123",
     customer_name: "Alex Customer",
     customer_mobile: "+61412345678",
+    customer_opted_out: false,
     ...o,
   });
   const itemRow = (id: string, price: number, position: number) => ({
@@ -121,6 +122,7 @@ describe("GET /api/jobs/:id", () => {
 
   beforeEach(async () => {
     query.mockReset();
+    query.mockResolvedValue({ rows: [] }); // anything not stubbed below: no rows
     app = await buildApp({ jwtSecret: "test-secret", webOrigin: "http://localhost:3000" });
     token = app.jwt.sign({ sub: "mechanic-1", workshopId: WORKSHOP_ID, role: "owner" });
   });
@@ -155,6 +157,44 @@ describe("GET /api/jobs/:id", () => {
     expect(body.items[1].photos).toEqual([]);
     expect(body.items).toHaveLength(2);
     expect(body.items[0]).toMatchObject({ id: "i1", priceCents: 28900, position: 0 });
+  });
+
+  it("reports no latestReport and not opted out for a job that was never sent", async () => {
+    query.mockResolvedValueOnce({ rows: [detailRow()] });
+    const body = (await get()).json();
+    expect(body.latestReport).toBeNull();
+    expect(body.customerOptedOut).toBe(false);
+  });
+
+  it("returns the newest report with its text status", async () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    query
+      .mockResolvedValueOnce({ rows: [detailRow({ status: "sent", customer_opted_out: true })] })
+      .mockResolvedValueOnce({ rows: [] }) // findings
+      .mockResolvedValueOnce({
+        rows: [{ id: "r1", sent_at: "2026-11-03T00:00:00.000Z", expires_at: future, decided_at: null, revoked_at: null, sms_status: "delivered" }],
+      });
+    const body = (await get()).json();
+    expect(body.customerOptedOut).toBe(true);
+    expect(body.latestReport).toEqual({ id: "r1", sentAt: "2026-11-03T00:00:00.000Z", expiresAt: future, state: "open", sms: "delivered" });
+    const reportSql = query.mock.calls[2][0] as string;
+    expect(reportSql).toMatch(/FROM reports r WHERE r\.job_id = \$1 ORDER BY r\.sent_at DESC LIMIT 1/i);
+  });
+
+  it.each([
+    [{ revoked_at: "2026-11-03T01:00:00.000Z" }, "revoked"],
+    [{ decided_at: "2026-11-03T01:00:00.000Z" }, "decided"],
+    [{ expires_at: "2020-01-01T00:00:00.000Z" }, "expired"],
+  ])("derives the report state from %j", async (over, state) => {
+    query
+      .mockResolvedValueOnce({ rows: [detailRow({ status: "sent" })] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ id: "r1", sent_at: "2026-11-03T00:00:00.000Z", expires_at: new Date(Date.now() + 86_400_000).toISOString(), decided_at: null, revoked_at: null, sms_status: null, ...over }],
+      });
+    const body = (await get()).json();
+    expect(body.latestReport.state).toBe(state);
+    expect(body.latestReport.sms).toBeNull();
   });
 
   it("shows a job with no findings as not_started with a zero total", async () => {

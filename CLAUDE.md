@@ -31,10 +31,10 @@ One repo: `Madhavan12/mechanicpulse`.
 | Backend | Node.js / Fastify |
 | Database | PostgreSQL on Amazon RDS |
 | Object storage | Amazon S3 — presigned URL, direct browser→S3 upload, never through the API. **Note: the original spike's bucket/IAM setup was lost and is being rebuilt by Madhavan as of 25 Sep 2026 — check `docs/plan.md` for current status before assuming a bucket exists.** |
-| SMS | Twilio (or AU aggregator — provider not yet finalized) — used only for the customer report link, NOT for mechanic login |
+| SMS | **Twilio** for the POC (chosen 3 Nov 2026), behind a provider interface so an AU aggregator can replace it — used only for the customer report link, NOT for mechanic login |
 | Auth (mechanic) | Email + password. bcrypt hash + JWT session token + Fastify middleware. NOT phone/OTP. NOT Keycloak. |
 | Auth (customer) | None — long random single-use `report_token` in the SMS link, expires after 7 days |
-| Hosting | AWS — Amplify Hosting or Fargate for the web app; Fargate or Lambda for the API (final call is Madhavan's) |
+| Hosting | AWS — Amplify Hosting or Fargate for the web app; Fargate or Lambda for the API (final call is Madhavan's). **Staging (written 3 Nov 2026, for Madhavan's review):** both on Fargate behind an ALB and CloudFront — see `docs/deploy-staging.md` |
 | IaC | Terraform |
 | Mobile | **Deferred.** No Capacitor, no native app, no App Store work right now. Documented as a future option only — see `docs/product-decisions.md`. Do not add Capacitor/React Native without this being explicitly revisited. |
 

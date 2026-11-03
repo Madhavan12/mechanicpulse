@@ -140,9 +140,13 @@ export interface JobDetail {
   status: JobStatus;
   displayStatus: JobDisplayStatus;
   customerName: string;
-  /** E.164. Lets the mechanic text the report link from their own phone
-   * until SMS delivery is built. */
+  /** E.164. Also used for the "Text it myself" fallback when SMS delivery
+   * fails or the customer has opted out. */
   customerMobile: string;
+  /** The customer replied STOP; we don't text them. */
+  customerOptedOut: boolean;
+  /** The most recent report sent for this job, if any. */
+  latestReport: LatestReport | null;
   vehicleMake: string | null;
   vehicleModel: string | null;
   vehicleRego: string;
@@ -290,6 +294,29 @@ export interface SendReportRequest {
   itemIds?: string[];
 }
 
+/** What happened to the text. The report itself is committed either way. */
+export type SmsOutcome =
+  | { status: "sent" }
+  | { status: "failed"; message: string }
+  | { status: "skipped"; reason: "opted_out" | "rate_limited" };
+
+export type SmsStatus = "queued" | "sent" | "delivered" | "undelivered" | "failed";
+
+/** The newest report on a job, for the Active Job status card. `sms` is null
+ * when no text was attempted (opted out, rate limited, or sent before SMS). */
+export interface LatestReport {
+  id: string;
+  sentAt: string;
+  expiresAt: string;
+  state: ReportState;
+  sms: SmsStatus | null;
+}
+
+/** POST /api/jobs/:id/report/resend — the old link is revoked and a new
+ * report is created with the same frozen findings. Only while the customer
+ * hasn't decided. */
+export type ResendReportResponse = SendReportResponse;
+
 export interface SendReportResponse {
   reportId: string;
   /** The raw token, returned exactly once. Only its SHA-256 hash is stored
@@ -301,6 +328,9 @@ export interface SendReportResponse {
   sentAt: string;
   expiresAt: string;
   totalCents: number;
+  /** Whether the customer was texted. Always check this: on anything but
+   * `sent`, the mechanic has to pass the link on themselves. */
+  sms: SmsOutcome;
 }
 
 /** Lifecycle of a report from the customer's point of view. Only "open"

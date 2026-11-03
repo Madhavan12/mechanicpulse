@@ -13,8 +13,8 @@ Current status and sprint structure. Update this as sprints progress — this is
 - **Login: done.** Real email/password auth against the `mechanics` table, bcrypt + JWT, per `docs/test-cases.md`.
 - **Upload/capture: working, deferred fine-tuning.** Presign + compress + upload flow works end-to-end against real S3; not yet wired into a real job/inspection-item (currently a standalone `/capture` test page).
 - **Job List and Create Job: done.** Active Job: in progress — see Immediate next tasks.
-- **Customer report page + send/approve API: done** (PR #40). Nothing on the mechanic side calls the send endpoint yet, and SMS isn't implemented — the link isn't texted.
-- AWS staging environment — not yet stood up. Needs a joint discussion with Madhavan before building — he owns the AWS account and Terraform state. (The old "accept Madhavan's IAM invitation" step referenced below is superseded by the SSO onboarding in `docs/aws-setup.md`.)
+- **Customer report page + send/approve API: done** (PR #40). The mechanic side calls it from Active Job, and SMS delivery is built (3 Nov) — see task 9 for what's left before it can text a real phone.
+- AWS staging environment — **written, not yet applied** (3 Nov 2026): `infra/staging/` (Terraform), container images for the API and web app (tested locally), and the runbook `docs/deploy-staging.md`. Akash is applying it himself because Madhavan is unavailable; Madhavan still needs to review it (see the last section of the runbook). It does not touch his existing resources. (Superseded note: the original instruction not to build staging solo was overridden by Akash on 3 Nov to avoid blocking the proof of concept.) (The old "accept Madhavan's IAM invitation" step referenced below is superseded by the SSO onboarding in `docs/aws-setup.md`.)
 - Production environment — intentionally not started. Will be created empty/idle, not touched further, until much later.
 
 ## Sprint structure
@@ -48,16 +48,18 @@ Current status and sprint structure. Update this as sprints progress — this is
 6. ~~Job List page~~ — done: `GET /api/jobs` endpoint, `AppHeader`/`StatusPill`/`SegmentedControl`/`ListBar` components, the page itself, and a "Create Job" button (button only — it navigates to `/jobs/new`, which doesn't exist yet, that's task 7). `docs/mechanic-pulse-frontend-spec.md`'s Job List section updated to describe the button.
 7. ~~Create Job page~~ — done (PR #44, committed under the branch name `feature/active-job`): `/jobs/new` + `POST /api/jobs`. Job List's "+ New Job" now opens it.
 8. **Active Job page** — built on `feature/view-job`: `GET /api/jobs/:id`, finding add/edit/delete, `/jobs/[id]` with findings, Estimate, photos (presign creates a `pending` `media` row → browser PUTs to S3 → `confirm` checks the object and marks it `ready`) and Send Report (confirm step, link shown once, `sms:` shortcut). Create Job lands on it. Real-S3 upload verified 2 Nov 2026 (`E2E_REAL_S3=1 npx playwright test photos-and-send`, both browsers). **Still to do: a phone test** (camera, weak signal) — that's Week 0 Run 2.
-9. **SMS delivery of the report link** — blocked on the Twilio vs. AU aggregator decision. Until then the mechanic copies the link.
+9. **SMS delivery of the report link** — built (3 Nov 2026, after PR #45), Twilio behind an interface, console provider by default: sending texts the link automatically, `sms_messages` + `sms.*` events, signed delivery webhook, "Send a new link" (revoke and reissue). Verified against the console provider and a fake Twilio; **first real-phone run (3 Nov): Twilio's trial account rejected the text with error 572006 — trial accounts can only send Twilio's predefined templates, not our message — so the real text still needs an upgraded account.** (The failure path worked as designed: recorded, mechanic told, link passed on by hand.) To go live: (a) a Twilio account and a sender — a trial number works for your own phone only, and an AU number needs its regulatory bundle approved (days; start now); (b) set `SMS_PROVIDER=twilio`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` on the API (secrets via Madhavan's secret store, never the repo); (c) set `PUBLIC_API_URL` to the API's public address so delivery receipts work; (d) register an alphanumeric sender ID when there's a registered business to put on it. Details: `docs/product-decisions.md`.
 
 ## Known gaps (deliberate, not forgotten)
 
 - **Orphaned S3 objects.** Removing a photo, or deleting a finding, deletes the `media` row but leaves the file in the bucket; abandoned and failed uploads also leave rows/objects behind. Agreed 2 Nov 2026 as fine for the trial. Needs a cleanup job (the `media_stuck_idx` partial index exists for finding stuck uploads) before real volume or a storage-cost review — and a decision with Madhavan on whether it runs as a Lambda/cron.
+- **Inbound STOP replies aren't recorded.** Twilio blocks further texts to a number that replied STOP, so we'd log a failed text, but `customers.sms_opted_out_at` isn't set from it. Needs an inbound-message webhook before real volume.
 - **Dev-seed photos don't exist in S3.** The seed's `dev/workshop-1/...jpg` keys are placeholders, so they show as broken thumbnails in the dev app.
 
 ## Open items still needing team decisions
 
-- SMS provider: Twilio vs. AU aggregator (affects the ~$84/month margin assumption)
+- SMS provider: Twilio chosen for the POC (3 Nov); revisit AU aggregator vs. Twilio on cost before real volume (affects the ~$84/month margin assumption)
+- Who creates the Twilio account and starts the AU number / sender-ID registration (Madhavan holds infra and secrets; Santhosh the business side)
 - Santhosh's role: proposed as Scrum Master + Product Owner + business lead, not yet confirmed
 - Whether the Checkpoint 1 threshold (3 of 5) still holds once workshop visits are actually booked
 - Buffer/slip policy — not yet explicitly agreed as a team, despite being flagged as worth deciding in advance

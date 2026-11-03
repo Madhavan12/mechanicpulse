@@ -11,6 +11,7 @@ test.describe("Auth boundary", () => {
       ["GET", `${API_URL}/api/jobs`, undefined],
       ["POST", `${API_URL}/api/media/presign`, { contentType: "image/jpeg", bytes: 1000 }],
       ["POST", `${API_URL}/api/jobs/${SEED.jobId}/report`, {}],
+      ["POST", `${API_URL}/api/jobs/${SEED.jobId}/report/resend`, {}],
     ] as const;
 
     for (const [method, url, data] of calls) {

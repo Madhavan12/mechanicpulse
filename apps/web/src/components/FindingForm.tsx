@@ -1,5 +1,6 @@
 "use client";
 
+import { newId } from "@/lib/id";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   addFinding,
@@ -209,7 +210,7 @@ export function FindingForm({
       try {
         const { blob, width, height } = await compressImage(file);
         const upload: Upload = {
-          key: crypto.randomUUID(),
+          key: newId(),
           preview: URL.createObjectURL(blob),
           blob,
           width,

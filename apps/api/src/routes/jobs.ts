@@ -34,6 +34,7 @@ interface DetailRow {
   vehicle_rego: string;
   customer_name: string;
   customer_mobile: string;
+  customer_opted_out: boolean;
 }
 
 function displayStatusFor(status: JobStatus, hasItems: boolean): JobDisplayStatus {
@@ -85,7 +86,8 @@ export async function jobsRoutes(app: FastifyInstance) {
     const { rows } = await db.query<DetailRow>(
       `SELECT j.id, j.status, j.created_at, j.odometer_km,
               v.make AS vehicle_make, v.model AS vehicle_model, v.rego AS vehicle_rego,
-              c.name AS customer_name, c.mobile_e164 AS customer_mobile
+              c.name AS customer_name, c.mobile_e164 AS customer_mobile,
+              (c.sms_opted_out_at IS NOT NULL) AS customer_opted_out
          FROM jobs j
          JOIN vehicles v ON v.workshop_id = j.workshop_id AND v.id = j.vehicle_id
          JOIN customers c ON c.workshop_id = j.workshop_id AND c.id = j.customer_id
@@ -103,12 +105,31 @@ export async function jobsRoutes(app: FastifyInstance) {
     const photos = await loadPhotos(app, itemRows.map((r) => r.id));
     const items = itemRows.map((r) => toFinding(r, photos.get(r.id)));
 
+    const { rows: reportRows } = await db.query(
+      `SELECT r.id, r.sent_at, r.expires_at, r.decided_at, r.revoked_at,
+              (SELECT s.status FROM sms_messages s WHERE s.report_id = r.id
+                ORDER BY s.created_at DESC LIMIT 1) AS sms_status
+         FROM reports r WHERE r.job_id = $1 ORDER BY r.sent_at DESC LIMIT 1`,
+      [jobId]
+    );
+    const r = reportRows[0];
+
     const body: JobDetail = {
       id: job.id,
       status: job.status,
       displayStatus: displayStatusFor(job.status, items.length > 0),
       customerName: job.customer_name,
       customerMobile: job.customer_mobile,
+      customerOptedOut: job.customer_opted_out,
+      latestReport: r
+        ? {
+            id: r.id,
+            sentAt: r.sent_at,
+            expiresAt: r.expires_at,
+            state: r.revoked_at ? "revoked" : r.decided_at ? "decided" : new Date(r.expires_at) <= new Date() ? "expired" : "open",
+            sms: r.sms_status ?? null,
+          }
+        : null,
       vehicleMake: job.vehicle_make,
       vehicleModel: job.vehicle_model,
       vehicleRego: job.vehicle_rego,
