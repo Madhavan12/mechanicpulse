@@ -1,8 +1,8 @@
 # CloudFront gives the site a trusted https:// address without a domain name or
 # certificate to manage (https://xxxx.cloudfront.net). Browsers need HTTPS for
 # the camera, the clipboard and other features; the load balancer behind it
-# only speaks plain HTTP. A custom domain can be added later by attaching an
-# ACM certificate here.
+# only speaks plain HTTP. Setting var.domain_name attaches a custom domain and
+# its ACM certificate (dns.tf).
 
 data "aws_cloudfront_cache_policy" "disabled" {
   name = "Managed-CachingDisabled"
@@ -70,7 +70,13 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
+  aliases = local.custom_domain ? [var.domain_name] : []
+
+  # Default cloudfront.net certificate, or the ACM one once a domain is set.
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = !local.custom_domain
+    acm_certificate_arn            = local.custom_domain ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    ssl_support_method             = local.custom_domain ? "sni-only" : null
+    minimum_protocol_version       = local.custom_domain ? "TLSv1.2_2021" : null
   }
 }
