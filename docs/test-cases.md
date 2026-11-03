@@ -174,7 +174,7 @@ Verified 2026-11-03 against the **console** provider (logs instead of sending) a
 
 ## Feature: Staging deployment (containers, scripts, `infra/staging/`)
 
-Written 3 Nov 2026. **Nothing here has been applied to AWS yet** — the checks below were done locally; the "first deploy" rows are the checklist for when `docs/deploy-staging.md` is run for real.
+Written 3 Nov 2026. The staging environment has since been applied and used from a phone (Akash, 3 Nov 2026). Rows 1–6 were checked locally before the first deploy; rows 7, 8 and 10 were checked by hand on staging; row 9 (a real text) is still open because the Twilio trial account blocks it.
 
 | # | Requirement source | Case | Expected result | Automated? |
 |---|---|---|---|---|
@@ -184,7 +184,7 @@ Written 3 Nov 2026. **Nothing here has been applied to AWS yet** — the checks 
 | 4 | Security — no shared demo password in a real environment | `createMechanic` script | Creates a workshop and an owner with a bcrypt hash; generates a password if none is given and prints it once; refuses a supplied password under 12 characters; refuses a duplicate email without leaving a half-made workshop | 🔸 Manual (all four cases). ⬜ No automated test |
 | 5 | Infra — Terraform is well-formed | `terraform fmt -check`, `terraform validate` | Clean | 🔸 Manual (Terraform 1.17.1, no backend). **Validate does not prove it will apply** — only `terraform plan`/`apply` against the account does |
 | 6 | Hosting — local dev unchanged | `npm run build` and `tsc` for both apps, API tests, e2e | Same as before (`output: "standalone"` only when `DOCKER_BUILD=1`; `NEXT_PUBLIC_API_URL` unset still means `localhost:3001`) | ✅ 273 API tests, both typechecks and a normal web build pass (3 Nov 2026) |
-| 7 | **First deploy (not done)** | Follow `docs/deploy-staging.md` end to end | `terraform plan` shows only creations; services come up; `site_url/health` is `{"ok":true}`; login works from a phone over HTTPS; the camera/photo upload works; a report can be sent and opened | 🔸 Manual — not yet run |
-| 8 | **First deploy (not done)** | Photo upload on the hosted site | Browser PUTs straight to the staging bucket (CORS allows the CloudFront address); confirm succeeds; thumbnail shows | 🔸 Manual — not yet run |
+| 7 | First deploy | Follow `docs/deploy-staging.md` end to end | `terraform plan` shows only creations; services come up; `site_url/health` is `{"ok":true}`; login works from a phone over HTTPS; the camera/photo upload works; a report can be sent and opened | 🔸 Manual — done 3 Nov 2026 from a phone (login, jobs, report link and approval confirmed by Akash). ⬜ Not in CI |
+| 8 | First deploy | Photo upload on the hosted site | Browser PUTs straight to the staging bucket (CORS allows the CloudFront address); confirm succeeds; thumbnail shows | 🔸 Manual — done 3 Nov 2026 (Android upload confirmed working on staging). ⬜ Not in CI |
 | 9 | **First deploy (not done)** | Text delivery with Twilio on an upgraded account | Text arrives; status moves to Text delivered via the signed webhook at `site_url/api/sms/twilio/status` | 🔸 Manual — not yet run (needs the upgraded Twilio account) |
-
+| 10 | Hosting — friendly address | Open `https://staging.mechanicpulse.app`; log in; upload a photo; open a report link in a private tab. Also open the old `cloudfront.net` address | Certificate is valid and the site loads over HTTPS. Login, upload (the bucket's CORS now allows only the new address) and the customer report all work. Uploads from the old address fail, by design | 🔸 Manual — Akash confirmed "it works" on 3 Nov 2026; the old-address check was not run. ⬜ Not in CI |

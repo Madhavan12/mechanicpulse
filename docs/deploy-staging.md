@@ -160,6 +160,34 @@ twilio_from        = "+1..."     # or a Messaging Service SID (MG...)
 
 `terraform apply`. The API restarts with the new settings, and delivery receipts work because the API now has a public address (`PUBLIC_API_URL` is set to `site_url` for you). Remember a Twilio **trial** account can only send Twilio's predefined messages (error 572006), so use an upgraded account for real texts. Details: `docs/product-decisions.md`, `docs/test-cases.md` (SMS section).
 
+## Use your own domain (optional)
+
+Gives the site a readable address such as `https://staging.mechanicpulse.app` instead of `xxxx.cloudfront.net`. Cost: the domain itself (a yearly fee; `.app` is roughly US$15–20, check the price when you buy) plus about US$0.50 a month for the Route 53 zone. The certificate is free. To go back, set `domain_name = ""` and apply.
+
+### A. Register the domain in Route 53 (simplest)
+
+1. AWS console (profile account, region does not matter) → **Route 53 → Registered domains → Register domains**. Search `mechanicpulse.app`; if it is available, add it to the cart, keep auto-renew on, and enter the contact details. Use a mailbox the project controls, not a personal one.
+2. **Verify the email.** ICANN requires the registrant to click a link AWS emails within 15 days, or the domain is suspended.
+3. Wait until the domain shows **Registered** (usually minutes to an hour). AWS creates a hosted zone for it automatically (**Route 53 → Hosted zones**).
+4. In `infra/staging/staging.auto.tfvars`:
+   ```hcl
+   domain_name   = "staging.mechanicpulse.app"
+   dns_zone_name = "mechanicpulse.app"
+   ```
+5. `terraform plan`, read it, then `terraform apply`. It requests the certificate, validates it through the zone (a few minutes), attaches it to CloudFront and adds the DNS records. `WEB_ORIGIN`, `PUBLIC_API_URL` and the photo bucket's CORS move to the new address together, and the API restarts.
+
+### B. Domain bought somewhere else
+
+Leave `dns_zone_name` out. Then:
+1. `terraform apply -target=aws_route53_zone.site` and `terraform output domain_name_servers`.
+2. At the registrar add four **NS** records for host `staging`, one per name server printed.
+3. `dig NS staging.mechanicpulse.app +short` must list the four AWS names (minutes to hours).
+4. `terraform apply`. It waits for the certificate to validate, up to about 75 minutes.
+
+### After either path
+
+Open the new address and check login, a photo upload and a report link. The old `cloudfront.net` address stops working for photo uploads (the bucket only allows the site address), and any link already sent or bookmarked with it no longer works.
+
 ## Deploying a new version
 
 ```bash
@@ -202,7 +230,7 @@ RDS takes a final snapshot (`mechanicpulse-staging-final`) before it goes. Delet
 - **Containers have public IPs** (no NAT gateway, which would add ~US$45/month). Their security group only accepts the load balancer, and the database has no route to the internet.
 - **Secrets are in the Terraform state** (private, encrypted, versioned bucket). Fine for staging; production should create them outside Terraform.
 - **Deploys are manual** (build, push, force a redeploy). A GitHub Actions deploy using OIDC is the next step; it needs no repository secrets and no repo admin rights.
-- **No custom domain, no WAF, no alarms.** CloudFront's default certificate and address are used.
+- **No WAF, no alarms.** A custom domain is optional (see "Use your own domain"); until it is set, CloudFront's default certificate and address are used.
 - **One database instance, one Availability Zone**, 7-day backups.
 - **Amplify Hosting** (the other option in `docs/product-decisions.md`) wasn't used: connecting it to GitHub needs admin rights on the repo, and Next.js 16 support on Amplify is unconfirmed. It can be revisited.
 

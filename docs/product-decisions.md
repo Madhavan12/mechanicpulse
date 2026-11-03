@@ -6,6 +6,8 @@ Full reasoning behind every major call, so nobody (human or Claude Code) re-liti
 
 ## Frontend framework: Next.js (React), browser-only
 
+> **Partly superseded on 3 Nov 2026:** the team has decided to wrap the mechanic app with Capacitor. The framework (Next.js/React, one codebase) and "customer page stays in the browser" still stand; "no native wrapper" no longer does. See "Mobile app: Capacitor wrapper" below.
+
 **Chosen:** Next.js, running in the browser, no native wrapper, for both the mechanic app and the customer report page.
 
 **Rejected:** Capacitor-wrapped native app; full React Native rewrite.
@@ -48,6 +50,8 @@ Full reasoning behind every major call, so nobody (human or Claude Code) re-liti
 ---
 
 ## Mobile distribution: deferred
+
+> **Superseded on 3 Nov 2026:** the decision is now to go with Capacitor. See "Mobile app: Capacitor wrapper" at the end of this file. The text below is kept for the history.
 
 See "Frontend framework" above — full reasoning lives there since it's the same decision. Documented separately here only to flag: **if this project revisits mobile app distribution, start by re-reading that section before making any new calls.** (The path — Capacitor, TestFlight, App Store submission, associated costs — was written up in more detail in an earlier standalone architecture doc that isn't part of this repo's docs; re-derive or ask Akash for it if this becomes relevant again rather than assuming it's somewhere in `docs/`.)
 
@@ -127,3 +131,48 @@ Built by Akash while Madhavan was unavailable, so the proof of concept wasn't bl
 
 **Also done for this:** the API's `npm start` pointed at a file that doesn't exist (`dist/index.js`; the build writes to `dist/apps/api/src/index.js`), so it was fixed; a migration runner and a "create first login" script were added instead of loading the demo seed, whose logins share the public password `password123`.
 
+
+## Mobile app: Capacitor wrapper (3 Nov 2026)
+
+**Decided:** the mechanic app will be wrapped with Capacitor and distributed as an iOS and Android app. This reverses the earlier "browser-only, mobile deferred" call (the first two sections of this file). **Parked:** it starts after the proof of concept, which is considered complete on staging as of 3 Nov 2026. Nothing has been built, and no Capacitor or native code has been added to the repo.
+
+**Why a wrapped app at all (Akash, 3 Nov 2026):** the product should end up properly mobile-friendly, and for a mechanic working on a phone an installed app is better than a web page: it sits on the home screen, opens straight to the app, and has direct access to the camera. The mechanic uses it standing at a car with dirty hands, so fewer taps and a more reliable camera matter.
+
+**What stays the same** (these were the reasons for avoiding a second codebase, and they still hold):
+- **One codebase.** Capacitor is a shell around the same Next.js/React app, not a rewrite. React Native and a separate mobile codebase stay rejected.
+- **The customer never installs anything.** The report link in the text opens in the phone's browser: no app, no login. Only the mechanic's app is wrapped.
+- **Auth, the API and the data model don't change.** Email + password with a JWT; no Keycloak, no phone/OTP login.
+
+### Why Capacitor over the alternatives
+
+"Capacitor docs" means pages read on 3 Nov 2026. "Background" is general knowledge that wasn't checked against a source; verify it before relying on it.
+
+| Option | Verdict | Reasoning |
+|---|---|---|
+| **Capacitor** | **Chosen** | Capacitor docs: "Capacitor is a cross-platform native runtime that makes it easy to build performant mobile applications that run natively on iOS, Android, and more using modern web tooling", and "If it works in the browser, it probably works in a mobile app when using Capacitor." It runs the existing web app inside a native shell and adds device features through plugins, so the Next.js/React/Tailwind work is reused. The Camera plugin covers taking a photo or picking one on iOS and Android (Capacitor docs). |
+| Stay a web app / PWA | Not enough | The wrapper is wanted for the home-screen app and native camera. Capacitor's own camera plugin falls back to a plain file-input on the web (Capacitor docs). Background: an installed web app on iPhone is a manual "Add to Home Screen", with no App Store presence and fewer device features. |
+| Cordova | Older approach | The Capacitor docs call Capacitor "the next evolution of Hybrid apps" and include a guide for migrating from Cordova. Starting a new project on Cordova would mean starting on the older tool. (The comparison pages themselves weren't read.) |
+| React Native | Rejected (as before) | It would mean writing the mechanic UI a second time in a separate framework. Background: web components and Tailwind styles can't be reused as they are. |
+| Fully native (Swift and Kotlin) or Flutter | Rejected | One or two new codebases and new skills for a small team, with no gain that matters for a photo-and-approval tool. Background. |
+
+### Correction to the earlier proposal: load the app from the shell, not from a URL
+
+An earlier draft of this section proposed pointing the Capacitor shell at the deployed site with `server.url`, so web deploys would update the app. **Capacitor's docs say the opposite:** `server.url` is "intended for use with live-reload servers" and "This is not intended for use in production." Apple's review guidelines (4.2) also reject apps that are "a repackaged website" (the wording is from a summary of the page, not copied; check the live page). So the production app should **bundle** the built web code inside the app. That has real consequences:
+
+1. **The mechanic screens must be buildable as a static export** (`output: "export"` in Next.js). Today `/jobs/[id]` and others are server-rendered, and `/jobs/[id]` has a runtime id in the path, so it needs rework (for example, reading the id from the query string on the client). The size of this has not been estimated; the earlier "hours to a day" estimate in the first section assumed a simpler wrapper and should not be relied on.
+2. **API calls become cross-origin.** The staging site is deliberately one origin so there's no CORS. A bundled app runs from its own origin (by default `capacitor://localhost` on iOS and `https://localhost` on Android; verify against the current Capacitor config), so `NEXT_PUBLIC_API_URL` must be the full API address, and the API's CORS (`apps/api/src/app.ts` currently allows a single `WEB_ORIGIN`) and the photo bucket's CORS (`infra/staging/storage.tf`) both need to allow the app's origin.
+3. **Two builds from one codebase.** The customer page (`/r/[token]`) stays server-rendered on the web, so the web app is still deployed as it is. The mobile build contains only the mechanic routes.
+4. **Releases go through the stores.** A web deploy no longer updates the app instantly, so the API must stay backward compatible with older installed app versions, or the app needs a forced-update check.
+
+### Plan (when it starts)
+
+1. Spike: static-export the mechanic routes (login, job list, new job, active job) and run them in a Capacitor shell on a device against staging. This answers the size question in point 1 above.
+2. Camera: replace the browser camera on the finding form with Capacitor's camera plugin. Photos still upload straight to S3 through a presigned URL.
+3. Add a Capacitor project to the repo (suggest `apps/mobile`: config and native projects only, no copied web code).
+4. TestFlight and an Android internal test track, pointed at staging, before any public release.
+
+### Open items
+
+- **Developer accounts.** Apple Developer Program is US$99 a year (Apple's programs page, 3 Nov 2026) and Google Play has a US$25 one-time fee (Google's help page). Apple allows enrolment "as an individual or organization"; what an organisation account needs (such as a D-U-N-S number) wasn't confirmed. Google says personal accounts must complete app-testing requirements before distributing, and may need government ID. Who owns the accounts depends on whether a company exists by then: Santhosh.
+- **App Store review.** The native camera (and push notifications, if added) is what gives the app value beyond a website. Check guideline 4.2 on Apple's site before submitting.
+- **Push notifications** (for example, telling the mechanic that the customer decided) are a possible next step, not part of this decision.
