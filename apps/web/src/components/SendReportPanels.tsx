@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { formatCents } from "@/lib/money";
 import { Button } from "@/components/Button";
-import type { JobDetail, SendReportResponse } from "../../../../packages/shared/types";
+import type { JobDetail, SendReportResponse, SmsOutcome } from "../../../../packages/shared/types";
 
 function Overlay({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -20,10 +20,26 @@ function Overlay({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-/** The two steps around sending: "are you sure" before, and the one-time
- * link after. Sending freezes the findings, so it gets a confirm; the link
- * is never retrievable again, so it gets a prominent Copy and a way to text
- * it straight from the mechanic's own phone (SMS delivery isn't built yet). */
+/** What the mechanic needs to know about the text, in words. Anything but
+ * "sent" means the customer has NOT been told, so the copy says what to do. */
+function smsHeadline(sms: SmsOutcome, firstName: string): { title: string; body: string; ok: boolean } {
+  if (sms.status === "sent") {
+    return { ok: true, title: `Text sent to ${firstName}`, body: `${firstName} has been texted the link. Keep this one as a backup — it won't be shown again.` };
+  }
+  if (sms.status === "skipped" && sms.reason === "opted_out") {
+    return { ok: false, title: `${firstName} has opted out of texts`, body: "We haven't texted them. Pass the link on another way — it won't be shown again." };
+  }
+  if (sms.status === "skipped") {
+    return { ok: false, title: "Too many texts for this job", body: "We've paused texting to avoid spamming the customer. Pass the link on yourself — it won't be shown again." };
+  }
+  return { ok: false, title: "The text didn't go through", body: `${firstName} has NOT been told. Send the link yourself — it won't be shown again.` };
+}
+
+/** The two steps around sending: "are you sure" before, and the result after.
+ * Sending freezes the findings, so it gets a confirm. The link is texted for
+ * the mechanic, but it's also shown once here: if the text fails or the
+ * customer has opted out it's the only way to get it to them, so it keeps a
+ * prominent Copy and a way to text it from the mechanic's own phone. */
 export function SendReportPanels({
   job,
   confirming,
@@ -48,7 +64,8 @@ export function SendReportPanels({
 
   if (sent) {
     const firstName = job.customerName.split(" ")[0];
-    const sms = `sms:${job.customerMobile}?&body=${encodeURIComponent(
+    const headline = smsHeadline(sent.sms, firstName);
+    const smsHref = `sms:${job.customerMobile}?&body=${encodeURIComponent(
       `Hi ${firstName}, here's the health report for your ${job.vehicleRego}: ${sent.reportUrl}`
     )}`;
 
@@ -65,9 +82,9 @@ export function SendReportPanels({
 
     return (
       <Overlay label="Report sent">
-        <h2 className="text-lg font-bold text-ink">Report ready to send</h2>
-        <p className="text-sm text-ink">
-          Send this link to {job.customerName}. <strong>It won&apos;t be shown again</strong>, so copy it now. It expires on{" "}
+        <h2 className={`text-lg font-bold ${headline.ok ? "text-ink" : "text-red"}`}>{headline.title}</h2>
+        <p className="text-sm text-ink" role={headline.ok ? undefined : "alert"}>
+          {headline.body} It expires on{" "}
           {new Date(sent.expiresAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}.
         </p>
         <input
@@ -81,7 +98,7 @@ export function SendReportPanels({
         <div className="flex flex-col gap-3">
           <Button fullWidth onClick={copy}>{copied ? "Copied ✓" : "Copy link"}</Button>
           <a
-            href={sms}
+            href={smsHref}
             className="flex h-11 items-center justify-center rounded-lg border border-brass text-sm font-medium text-brass hover:bg-brass/10"
           >
             Text it to {firstName}

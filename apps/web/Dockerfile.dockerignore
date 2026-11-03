@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.next
+**/.env
+**/.env.*
+**/test-results
+.git
+graphify-out
+apps/api
+docs
+db

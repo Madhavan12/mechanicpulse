@@ -42,7 +42,7 @@ test.describe("Report lifecycle", () => {
     await query(`UPDATE reports SET revoked_at = now() WHERE id = $1`, [report.reportId]);
 
     await page.goto(`/r/${report.token}`);
-    await expectDeadEnd(page, "This report was withdrawn");
+    await expectDeadEnd(page, "This link is no longer active");
 
     const res = await request.post(`${API_URL}/api/report/${report.token}/decision`, {
       data: {

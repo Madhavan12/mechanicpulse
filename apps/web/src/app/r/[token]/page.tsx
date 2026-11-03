@@ -104,8 +104,8 @@ export default function CustomerReportPage() {
   if (report.state === "revoked") {
     return (
       <DeadEnd
-        title="This report was withdrawn"
-        body={`${report.workshopName} has taken this quote back. Give them a call and they'll explain.`}
+        title="This link is no longer active"
+        body={`${report.workshopName} may have sent you a newer text with a new link. Check your messages, or give them a call.`}
         phone={report.workshopPhone}
       />
     );

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { buildApp } from "./app";
+import { smsProviderFromEnv } from "./lib/sms";
 
 const PORT = Number(process.env.PORT) || 3001;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -11,7 +12,15 @@ if (!JWT_SECRET) {
 }
 
 async function main() {
-  const app = await buildApp({ jwtSecret: JWT_SECRET!, webOrigin: WEB_ORIGIN, logger: true });
+  const app = await buildApp({
+    jwtSecret: JWT_SECRET!,
+    webOrigin: WEB_ORIGIN,
+    logger: true,
+    sms: smsProviderFromEnv(),
+    publicApiUrl: process.env.PUBLIC_API_URL,
+    twilioAuthToken: process.env.TWILIO_AUTH_TOKEN,
+  });
+  app.log.info(`SMS provider: ${app.sms.name}`);
   await app.listen({ port: PORT, host: "0.0.0.0" });
 }
 

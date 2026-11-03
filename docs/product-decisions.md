@@ -95,3 +95,35 @@ Deleting a photo or a finding removes the database row but not the S3 object, an
 
 **Also decided:** a failed or long-abandoned (15 min) upload stops counting against the 4-photo cap, so a bad connection never locks a finding out of photos; and the API reads a photo's size from S3 at confirm time rather than trusting the browser.
 
+## SMS delivery: Twilio behind an interface; the report is never held hostage by the text (3 Nov 2026)
+
+**Provider: Twilio** for the proof of concept (chosen 3 Nov). All provider code sits behind a small `SmsProvider` interface (`apps/api/src/lib/sms/`), so moving to an AU aggregator later is one new file and an env var. The default provider is a **console logger**, used in dev, CI and the e2e suite, so nothing real is sent unless `SMS_PROVIDER=twilio` and its three credentials are set (a half-configured Twilio fails at startup, not at a customer's first text). Twilio is called with plain `fetch`; the SDK isn't worth a dependency for one endpoint.
+
+**Sender for the POC: a plain Twilio number, not an alphanumeric sender ID** (we don't have one registered). `TWILIO_FROM` takes a phone number or a Messaging Service SID (`MG…`), so adding a registered sender ID later is config only. The text names the workshop so the customer can tell who it's from. Registering a sender ID (and the AU number's regulatory bundle, if we use an AU number) has lead time and is tracked in `docs/plan.md`.
+
+**The report is committed first, the text is best-effort after.** If the provider is down, the report still exists and the mechanic still gets the link, with a clear "the customer has NOT been told" message. The alternative (rolling the report back on an SMS failure) would turn a Twilio outage into lost quotes. Every attempt is recorded in `sms_messages` and as `sms.sent` / `sms.failed` / `sms.delivered` events with actor `system`, so upload and delivery reliability are measurable like everything else.
+
+**Opt-out and limits.** A customer with `sms_opted_out_at` is never texted (Spam Act). At most 5 texts per job per hour and 300 per workshop per day, so a bug or a hammered button can't spam anyone or run up the bill.
+
+**Delivery receipts** come from Twilio to `POST /api/sms/twilio/status`, verified by Twilio's HMAC signature (no valid signature, `403`). Only `delivered`, `undelivered` and `failed` change anything, and only on messages that aren't already final, so out-of-order callbacks can't overwrite a result. Callbacks need `PUBLIC_API_URL`; without it the message stays at `sent`.
+
+**Resend = revoke and reissue.** Tokens are stored only as hashes, so a lost link can't be shown again. "Send a new link" revokes the live report and creates a new one with a **copy of the same frozen findings and total**, so the quote the customer sees doesn't change, only the link. It is refused once the customer has responded (that record must not be replaced). A customer opening the old link sees "this link is no longer active" rather than "withdrawn", since a resend isn't the workshop taking the quote back.
+
+**Known gap:** inbound STOP replies aren't handled by us. Twilio blocks further texts to a number that replied STOP (we'd record a failed text), but `customers.sms_opted_out_at` isn't set from it. Fine for the trial; an inbound webhook is the fix.
+
+## Staging hosting: Fargate for both apps behind one CloudFront address (3 Nov 2026)
+
+Built by Akash while Madhavan was unavailable, so the proof of concept wasn't blocked. **For Madhavan's review**; nothing here is final until he's looked. Runbook: `docs/deploy-staging.md`. Code: `infra/staging/` (Terraform, own state, nothing shared with existing resources).
+
+**Shape:** ECS Fargate runs the API and the web app (both containers, ARM); an Application Load Balancer routes `/api/*` and `/health` to the API and everything else to the web app; CloudFront sits in front and gives the site a trusted `https://` address; RDS Postgres 16 sits in private subnets; photos go to their own S3 bucket. The ALB only accepts traffic that carries CloudFront's secret header.
+
+**Why one address for web and API:** the browser then talks to a single origin, so there is no CORS to configure and no mixed-content blocking, and the web image has no environment-specific values baked in (`NEXT_PUBLIC_API_URL` is empty = same origin).
+
+**Why CloudFront in front of the ALB:** a trusted certificate on the ALB needs a domain we don't have. CloudFront's default certificate gives HTTPS today, and the phone needs HTTPS for the camera, clipboard and other secure-page features (the Android upload bug on 3 Nov was `crypto.randomUUID` missing on a plain-http page). A custom domain can be attached later.
+
+**Why not Amplify Hosting (the option named under "Hosting"):** connecting Amplify to GitHub installs a webhook, which needs admin rights on the repository, and Akash has `push` but not `admin` on it. Next.js 16 support on Amplify is also unconfirmed. Revisit once Madhavan can connect it; the web container is a straight swap.
+
+**Deliberate shortcuts for a proof of concept** (listed with their fixes in the runbook): no NAT gateway (containers have public IPs behind a locked-down security group), database TLS encrypted but not verified, secrets in the Terraform state, manual deploys, one database in one Availability Zone.
+
+**Also done for this:** the API's `npm start` pointed at a file that doesn't exist (`dist/index.js`; the build writes to `dist/apps/api/src/index.js`), so it was fixed; a migration runner and a "create first login" script were added instead of loading the demo seed, whose logins share the public password `password123`.
+

@@ -3,12 +3,13 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ApiError, clearSession, getJob, getStoredMechanic, getToken, sendReport } from "@/lib/api";
+import { ApiError, clearSession, getJob, getStoredMechanic, getToken, resendReport, sendReport } from "@/lib/api";
 import { formatCents } from "@/lib/money";
 import type { Finding, JobDetail, SendReportResponse } from "../../../../../../packages/shared/types";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/Button";
 import { FindingForm } from "@/components/FindingForm";
+import { ReportStatusCard } from "@/components/ReportStatusCard";
 import { SendReportPanels } from "@/components/SendReportPanels";
 import { ListBar } from "@/components/ListBar";
 import { SeverityChip } from "@/components/SeverityChip";
@@ -93,13 +94,23 @@ export default function ActiveJobPage({ params }: { params: Promise<{ id: string
       const result = await sendReport(job.id);
       setSent(result);
       setConfirmingSend(false);
-      // The job is now read-only; reflect that without a reload.
+      // The job is now read-only; reflect that straight away, then pull the
+      // report status for the card behind the dialog.
       setJob((j) => (j ? { ...j, status: "sent", displayStatus: "completed" } : j));
+      getJob(job.id).then(setJob).catch(() => {});
     } catch (err) {
       setSendError(err instanceof Error ? err.message : "Could not send the report.");
     } finally {
       setSending(false);
     }
+  }
+
+  /** A new link was issued: show it (once), and refresh the card behind it. */
+  async function onResend() {
+    const result = await resendReport(id);
+    setSent(result);
+    getJob(id).then(setJob).catch(() => {});
+    return result;
   }
 
   const header = <AppHeader mechanicName={mechanicName} onBack={() => router.push("/jobs")} onLogout={logout} />;
@@ -151,6 +162,8 @@ export default function ActiveJobPage({ params }: { params: Promise<{ id: string
             This report has been sent to the customer, so the findings can no longer be changed.
           </p>
         )}
+
+        {!open && <ReportStatusCard job={job} onResend={onResend} />}
 
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
           <section aria-label="Findings" className="flex flex-col gap-[10px] lg:w-[65%]">
